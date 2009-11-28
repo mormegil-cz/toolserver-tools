@@ -37,7 +37,7 @@ if (strlen($callback) > MAX_CALLBACK_LENGTH || !preg_match('/^[a-zA-Z_][a-zA-Z_0
 
 $toolserver_mycnf = parse_ini_file('/home/' . get_current_user() . '/.my.cnf');
 $db = mysql_connect('cswiki-p.db.toolserver.org', $toolserver_mycnf['user'], $toolserver_mycnf['password']);
-if (!db)
+if (!$db)
 {
 	header('Status: 500');
 	echo '// Error connecting to database';
@@ -54,7 +54,7 @@ if (!mysql_select_db('cswiki_p', $db))
 unset($toolserver_mycnf);
 
 $queryresult = mysql_query("SELECT page_namespace, page_title FROM categorylinks INNER JOIN page ON cl_from=page_id WHERE cl_to='Články_s_odkazem_na_autoritní_záznam' AND cl_sortkey='" . mysql_real_escape_string($autid) . "'", $db);
-if (!query_result) {
+if (!$queryresult) {
 	header('Status: 500');
 	echo '// Error executing query';
 	echo "$callback(null);";
