@@ -18,7 +18,7 @@ function connect_to_db($dbname)
     }
     else
     {
-        $db = mysql_connect('localhost', 'wikiuser', 'wikipass');
+        $db = mysql_connect('127.0.0.1', 'wikiuser', 'wikipass');
         if (!$db) return null;
         if (!mysql_select_db('wikidb', $db)) return null;
         return $db;
