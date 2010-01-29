@@ -17,7 +17,7 @@ function process_years($basetitle)
 {
   global $db;
 
-  $queryresult = mysql_query("SELECT cl_to, COUNT(*) FROM categorylinks WHERE cl_to LIKE '$basetitle\\_____' GROUP BY cl_to", $db);
+  $queryresult = mysql_query('SELECT cl_to, COUNT(*) FROM categorylinks WHERE cl_to LIKE \'' . mysql_real_escape_string($basetitle) . '\\_____\' GROUP BY cl_to', $db);
   if (!$queryresult)
   {
   	header('Status: 500');
@@ -45,7 +45,7 @@ $deaths = process_years('Úmrtí');
 
 $now = intval(date('Y'));
 
-header('Content-Type: text/csv; charset=utf-8; header=absent')
+header('Content-Type: text/csv; charset=utf-8; header=absent');
 for ($y = 1000; $y <= $now; ++$y)
 {
     $b = isset($births[$y]) ? $births[$y] : 0;

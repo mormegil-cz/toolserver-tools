@@ -2,6 +2,7 @@
 
 function running_on_toolserver()
 {
+    if (!isset($_SERVER['SERVER_NAME'])) return isset($_SERVER['SSH_CONNECTION']);
     return preg_match("/\btoolserver\.org$/", $_SERVER['SERVER_NAME']) ? true : false;
 }
 
