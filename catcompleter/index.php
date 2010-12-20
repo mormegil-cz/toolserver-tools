@@ -32,18 +32,6 @@ $project = isset($_POST['project']) ? $_POST['project'] : null;
   <title>Category completer</title>
   <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/main-ltr.css" media="screen" />
   <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/shared.css" media="screen" />
-  <script type="text/javascript">
-var skin="none",
-wgUserLanguage="cs",
-wgContentLanguage="cs",
-stylepath="http://cs.wikipedia.org/skins-1.5",
-wgBreakFrames=false;</script>
-  <script src="http://cs.wikipedia.org/skins-1.5/common/wikibits.js" type="text/javascript"></script>
-  <style type="text/css">
-a { text-decoration: none; color: black; }
-a:hover { text-decoration: underline; color: #00e; }
-a img { border: none; }
-  </style>
 </head>
 <body class="mediawiki ltr">
     <h1>Category completer</h1>
@@ -54,10 +42,133 @@ a img { border: none; }
             <tr><th><label for="dbname">Category:</label></th><td><input name="catname" id="catname" maxlength="255" value="<?php echo $catname ? htmlspecialchars($catname) : '' ?>" /></td></tr>
             <tr><td colspan="2"><input type="submit" value="Go!" /></td></tr>
         </table>
-    </form>
 <?php
 
-function execute($catname, $homelang)
+function execute($catname, $homelang, $sourcewiki)
+{
+    $db = connect_to_db($homelang . 'wiki');
+    if (!$db)
+    {
+        echo '<p class="error">Error connecting to database</p>';
+        return;
+    }
+
+	$remotedb = connect_to_db($sourcewiki . 'wiki');
+	if (!$remotedb)
+	{
+		echo "<p class='error'>Error connecting to $sourcewiki</p>";
+		return;
+	}
+
+	$catname = title_to_db($catname);
+	$caturl = str_replace('&', '%26', $catname);
+
+	echo "<!-- Loading interwiki -->\n";
+	flush();
+	$query = "SELECT ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($catname, $db) . "' AND page_namespace = 14 AND ll_lang='" . mysql_real_escape_string($sourcewiki, $db) . "'";
+    $queryresult = mysql_query($query, $db);
+    if (!$queryresult)
+    {
+        echo '<p class="error">Error executing interwiki query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        return;
+    }
+
+	$remotecatname = null;
+	if ($row = mysql_fetch_assoc($queryresult))
+    {
+		$title = $row['ll_title'];
+		$colon = strpos($title, ':');
+		if ($colon === FALSE)
+		{
+			echo '<p class="error">Suspicious interwiki: ' . htmlspecialchars($sourcewiki . ": " . $title) . '</p>';
+			return;
+		}
+		$remotecatname = substr($title, $colon + 1);
+	}
+	else
+	{
+		echo '<p class="error">Interwiki link not found</p>';
+		return;
+	}
+	
+	echo "<!-- Loading category -->\n";
+	flush();
+	$queryresult = mysql_query("SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysql_real_escape_string(title_to_db($catname), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
+    if (!$queryresult)
+    {
+        echo '<p class="error">Error executing category query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        return;
+    }
+
+	$localarticles = array();
+    while ($row = mysql_fetch_array($queryresult))
+    {
+		$localarticles[$row[0]] = 1;
+	}
+
+	echo "<!-- Starting interwiki processing -->\n";
+	flush();
+	$countmissing = 0;
+	$remotearticles = 0;
+	$homewiki = 'http://' . htmlspecialchars($homelang, ENT_QUOTES) . '.wikipedia.org/wiki/';
+	$remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
+	$remotecaturl = $remotewiki . "Category:" . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotecatname)), ENT_QUOTES);
+
+	$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysql_real_escape_string($homelang, $remotedb) .  "' INNER JOIN page ON page_id = ll_from WHERE cl_to = '" .  mysql_real_escape_string(title_to_db($remotecatname), $remotedb) . "' AND page_namespace=0 LIMIT 500";
+	$result = mysql_query($query, $remotedb);
+	if (!$result)
+	{
+		echo "<p class='error'>Error processing query at $sourcewiki</p>";
+		return;
+	}
+
+	echo "<h3><a href='$remotecaturl'>$sourcewiki:Category:" . htmlspecialchars($remotecatname) . "</a></h3>";
+
+	while ($row = mysql_fetch_array($result))
+	{
+		++$remotearticles;
+		$article = $row[0];
+		$remotedbarticle = $row[1];
+		$dbarticle = title_to_db($article);
+		if (!array_key_exists($dbarticle, $localarticles))
+		{
+			$remotearticle = title_from_db($remotedbarticle);
+			$remotearticleurl = str_replace('?', '%3F', $remotedbarticle);
+			$articleurl = str_replace('?', '%3F', $dbarticle);
+
+			if ($countmissing == 0)
+			{
+				echo "<table class='wikitable sortable'>\n";
+				echo "<tr><th>Remote</th><th>Local</th><th>HotCat</th></tr>\n";
+			}
+
+			echo "\t<tr>\n";
+			echo "\t\t<td><a href='$remotewiki" . htmlspecialchars($remotearticleurl, ENT_QUOTES) . "'>" . htmlspecialchars($remotearticle) . "</td>\n";
+			echo "\t\t<td>\n";
+			echo "\t\t\t<a href='$homewiki" . htmlspecialchars($articleurl, ENT_QUOTES) . "'>" . htmlspecialchars($article) . "</a>\n";
+			echo "\t\t</td>\n";
+			echo "\t\t<td>\n";
+			echo "\t\t\t(<a href='$homewiki" . htmlspecialchars($articleurl, ENT_QUOTES) . "?action=edit&hotcat_comment=%20(CatCompleter%20via%20[[$sourcewiki:Category:$remotecatname]])&amp;hotcat_newcat=" . htmlspecialchars($caturl, ENT_QUOTES) . "'>+</a>)\n";
+			echo "\t\t</td>\n";
+			echo "\t</tr>\n";
+			flush();
+
+			++$countmissing;
+		}
+	}
+
+	if ($countmissing == 0)
+	{
+		echo "<p>Nothing to do... " . count($localarticles) . " articles at $homelang, $remotearticles at $sourcewiki</p>";
+		return;
+	}
+	else
+	{
+		echo "</table>";
+	}
+}
+
+function sourcewikichoice($catname, $homelang)
 {
     $db = connect_to_db($homelang . 'wiki');
     if (!$db)
@@ -67,116 +178,57 @@ function execute($catname, $homelang)
     }
 
 	$catname = title_to_db($catname);
+	$caturl = str_replace('&', '%26', $catname);
 
-	flush();
 	$query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($catname, $db) . "' AND page_namespace = 14";
     $queryresult = mysql_query($query, $db);
     if (!$queryresult)
     {
-        echo '<p class="error">Error executing query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        echo '<p class="error">Error executing interwiki query: ' . htmlspecialchars(mysql_error()) . '</p>';
         return;
     }
 
-	$interwikis = array();
-    while ($row = mysql_fetch_assoc($queryresult))
+	$first = true;
+	while ($row = mysql_fetch_assoc($queryresult))
     {
 		$lang = $row['ll_lang'];
 		$title = $row['ll_title'];
 		$colon = strpos($title, ':');
+		if ($first)
+		{
+			echo '<h2>Choose source language</h2>';
+			$first = false;
+		}
 		if ($colon === FALSE)
 		{
-			echo '<p class="error">Suspicious interwiki: ' . htmlspecialchars($lang . ": " . $title) . '</p>';
-			continue;
+			echo "<span class='error'>$lang</span>";
 		}
-		$interwikis[$lang] = substr($title, $colon + 1);
-	}
-
-	flush();
-	$queryresult = mysql_query("SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysql_real_escape_string(title_to_db($catname), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
-    if (!$queryresult)
-    {
-        echo '<p class="error">Error executing query: ' . htmlspecialchars(mysql_error()) . '</p>';
-        return;
-    }
-
-	flush();
-	$localarticles = array();
-    while ($row = mysql_fetch_array($queryresult))
-    {
-		$localarticles[$row[0]] = 1;
-	}
-
-	flush();
-	$countmissing = 0;
-	foreach($interwikis as $lang => $cat)
-	{
-		flush();
-		$remotedb = connect_to_db($lang . 'wiki');
-		if (!$remotedb)
+		else
 		{
-			if ($countmissing == 0)
-				echo "<p class='error'>Error connecting to $lang</p>";
-			else
-				echo "<tr><td colspan='2'><div class='error'>Error connecting to $lang</div></td></tr>";
-
-			continue;
+			echo "<input type='submit' name='sourcewiki' value='$lang' />";
 		}
-		$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysql_real_escape_string($homelang, $remotedb) .  "' INNER JOIN page ON page_id = ll_from WHERE cl_to = '" .  mysql_real_escape_string(title_to_db($cat), $remotedb) . "' AND page_namespace=0 LIMIT 500";
-		// echo "<p>" . htmlspecialchars($query) . "</p>\n";
-		$result = mysql_query($query, $remotedb);
-		if (!$result)
-		{
-			if ($countmissing == 0)
-				echo "<p class='error'>Error processing query at $lang</p>";
-			else
-				echo "<tr><td colspan='2'><div class='error'>Error  processing query at $lang</div></td></tr>";
-			mysql_close($remotedb);
-			continue;
-		}
-		while ($row = mysql_fetch_array($result))
-		{
-			$article = $row[0];
-			$remotedbarticle = $row[1];
-			$dbarticle = title_to_db($article);
-			$remotearticle = title_from_db($remotedbarticle);
-			if (!array_key_exists($dbarticle, $localarticles))
-			{
-				$localarticles[$dbarticle] = $lang;
-
-				if ($countmissing == 0)
-				{
-					echo "<table class='wikitable sortable'>\n";
-					echo "<tr><th>Remote</th><th>Local</th></tr>\n";
-				}
-
-			    echo "\t<tr>\n";
-				echo "\t\t<td><a href='http://" . htmlspecialchars($lang, ENT_QUOTES) . ".wikipedia.org/wiki/Category:" . htmlspecialchars(title_to_db($interwikis[$lang]), ENT_QUOTES) . "'>" . htmlspecialchars($lang) . "</a>:<a href='http://" . htmlspecialchars($lang, ENT_QUOTES) . ".wikipedia.org/wiki/" . htmlspecialchars($remotedbarticle, ENT_QUOTES) . "'>" . htmlspecialchars($remotearticle) . "</td>\n";
-				echo "\t\t<td><a href='http://" . htmlspecialchars($homelang, ENT_QUOTES) . ".wikipedia.org/wiki/" . htmlspecialchars($dbarticle, ENT_QUOTES) . "'>" . htmlspecialchars($article) . "</a></td>\n";
-				echo "\t</tr>\n";
-				flush();
-
-				++$countmissing;
-			}
-		}
-		mysql_close($remotedb);
+		$first = false;
 	}
-	unset($lang); unset($cat);
 
-	if ($countmissing == 0)
+	if ($first)
 	{
-		echo "<p>Nothing to do... " . count($localarticles) . " articles at home, " . count($interwikis) . " interwikis checked, nothing found</p>";
-		return;
-	}
-	else
-	{
-		echo "</table>";
+		echo '<p class="error">No interwiki links found!</p>';
 	}
 }
 
 if ($catname && $project)
 {
-	execute($catname, $project);
+	$sourcewiki = isset($_POST['sourcewiki']) ? $_POST['sourcewiki'] : null;
+	if ($sourcewiki)
+	{
+		execute($catname, $project, $sourcewiki);
+	}
+	else
+	{
+		sourcewikichoice($catname, $project);
+	}
 }
 ?>
+    </form>
 </body>
 </html>
