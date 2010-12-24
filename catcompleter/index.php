@@ -20,10 +20,11 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+require_once(dirname( __FILE__ ) . '/../includes/functions.php');
 require_once(dirname( __FILE__ ) . '/../includes/db.php');
 
-$catname = isset($_POST['catname']) ? $_POST['catname'] : null;
-$project = isset($_POST['project']) ? $_POST['project'] : null;
+$catname = get_variable_or_null('catname');
+$project = get_variable_or_null('project');
 
 ?><!DOCTYPE HTML>
 <html>
