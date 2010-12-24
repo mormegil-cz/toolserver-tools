@@ -22,6 +22,7 @@ ini_set('display_errors', 1);
 
 require_once(dirname( __FILE__ ) . '/../includes/functions.php');
 require_once(dirname( __FILE__ ) . '/../includes/db.php');
+require_once(dirname( __FILE__ ) . '/../includes/l10n.php');
 
 $catname = get_variable_or_null('catname');
 $project = get_variable_or_null('project');
@@ -30,18 +31,18 @@ $project = get_variable_or_null('project');
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>Category completer</title>
+  <title><?php echo wfMsg('title'); ?></title>
   <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/main-ltr.css" media="screen" />
   <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/shared.css" media="screen" />
 </head>
 <body class="mediawiki ltr">
-    <h1>Category completer</h1>
+    <h1><?php echo wfMsg('title'); ?></h1>
 
     <form method="post">
         <table>
-            <tr><th><label for="dbname">Home language:</label></th><td><input name="project" id="project" maxlength="20" value="<?php echo $project ? htmlspecialchars($project) : '' ?>" /></td></tr>
-            <tr><th><label for="dbname">Category:</label></th><td><input name="catname" id="catname" maxlength="255" value="<?php echo $catname ? htmlspecialchars($catname) : '' ?>" /></td></tr>
-            <tr><td colspan="2"><input type="submit" value="Go!" /></td></tr>
+            <tr><th><label for="dbname"><?php echo wfMsg('homelanguage'); ?></label></th><td><input name="project" id="project" maxlength="20" value="<?php echo $project ? htmlspecialchars($project) : $uselang ?>" /></td></tr>
+            <tr><th><label for="dbname"><?php echo wfMsg('category'); ?></label></th><td><input name="catname" id="catname" maxlength="255" value="<?php echo $catname ? htmlspecialchars($catname) : '' ?>" /></td></tr>
+            <tr><td colspan="2"><input type="submit" value="<?php echo htmlspecialchars(wfMsg('submit'), ENT_QUOTES); ?>" /></td></tr>
         </table>
 <?php
 
@@ -50,14 +51,14 @@ function execute($catname, $homelang, $sourcewiki)
     $db = connect_to_db($homelang . 'wiki');
     if (!$db)
     {
-        echo '<p class="error">Error connecting to database</p>';
+        echo "<p class='error'>" . wfMsg('error-db') . "</p>";
         return;
     }
 
 	$remotedb = connect_to_db($sourcewiki . 'wiki');
 	if (!$remotedb)
 	{
-		echo "<p class='error'>Error connecting to $sourcewiki</p>";
+        echo "<p class='error'>" . format_message('error-sourcedb', $sourcewiki) . "</p>";
 		return;
 	}
 
@@ -70,7 +71,7 @@ function execute($catname, $homelang, $sourcewiki)
     $queryresult = mysql_query($query, $db);
     if (!$queryresult)
     {
-        echo '<p class="error">Error executing interwiki query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
         return;
     }
 
@@ -81,14 +82,14 @@ function execute($catname, $homelang, $sourcewiki)
 		$colon = strpos($title, ':');
 		if ($colon === FALSE)
 		{
-			echo '<p class="error">Suspicious interwiki: ' . htmlspecialchars($sourcewiki . ": " . $title) . '</p>';
+			echo "<p class='error'>" . format_message('error-badiw', $sourcewiki, $title) . "</p>";
 			return;
 		}
 		$remotecatname = substr($title, $colon + 1);
 	}
 	else
 	{
-		echo '<p class="error">Interwiki link not found</p>';
+        echo "<p class='error'>" . wfMsg('error-missingiw') . "</p>";
 		return;
 	}
 	
@@ -97,7 +98,7 @@ function execute($catname, $homelang, $sourcewiki)
 	$queryresult = mysql_query("SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysql_real_escape_string(title_to_db($catname), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
     if (!$queryresult)
     {
-        echo '<p class="error">Error executing category query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
         return;
     }
 
@@ -119,7 +120,7 @@ function execute($catname, $homelang, $sourcewiki)
 	$result = mysql_query($query, $remotedb);
 	if (!$result)
 	{
-		echo "<p class='error'>Error processing query at $sourcewiki</p>";
+        echo "<p class='error'>" . wfMsg('error-remotequery') . "</p>";
 		return;
 	}
 
@@ -140,7 +141,7 @@ function execute($catname, $homelang, $sourcewiki)
 			if ($countmissing == 0)
 			{
 				echo "<table class='wikitable sortable'>\n";
-				echo "<tr><th>Remote</th><th>Local</th><th>HotCat</th></tr>\n";
+				echo "<tr><th>" . wfMsg('header-remote') . "</th><th>" . wfMsg('header-local') . "</th><th>" . wfMsg('header-hotcat') . "</th></tr>\n";
 			}
 
 			echo "\t<tr>\n";
@@ -160,7 +161,7 @@ function execute($catname, $homelang, $sourcewiki)
 
 	if ($countmissing == 0)
 	{
-		echo "<p>Nothing to do... " . count($localarticles) . " articles at $homelang, $remotearticles at $sourcewiki</p>";
+		echo "<p>" . format_message('nothingtodo', $homelang, count($localarticles), $sourcewiki, $remotearticles) . "</p>";
 		return;
 	}
 	else
@@ -174,7 +175,7 @@ function sourcewikichoice($catname, $homelang)
     $db = connect_to_db($homelang . 'wiki');
     if (!$db)
     {
-        echo '<p class="error">Error connecting to database</p>';
+        echo "<p class='error'>" . wfMsg('error-db') . "</p>";
         return;
     }
 
@@ -185,7 +186,7 @@ function sourcewikichoice($catname, $homelang)
     $queryresult = mysql_query($query, $db);
     if (!$queryresult)
     {
-        echo '<p class="error">Error executing interwiki query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
         return;
     }
 
@@ -197,7 +198,7 @@ function sourcewikichoice($catname, $homelang)
 		$colon = strpos($title, ':');
 		if ($first)
 		{
-			echo '<h2>Choose source language</h2>';
+			echo "<h2>" . wfMsg('choosesource') . "</h2>";
 			$first = false;
 		}
 		if ($colon === FALSE)
@@ -213,7 +214,7 @@ function sourcewikichoice($catname, $homelang)
 
 	if ($first)
 	{
-		echo '<p class="error">No interwiki links found!</p>';
+        echo "<p class='error'>" . wfMsg('error-noiw') . "</p>";
 	}
 }
 
