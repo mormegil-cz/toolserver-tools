@@ -20,6 +20,8 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+$available_languages = array('en', 'cs');
+
 require_once(dirname( __FILE__ ) . '/../includes/functions.php');
 require_once(dirname( __FILE__ ) . '/../includes/db.php');
 require_once(dirname( __FILE__ ) . '/../includes/l10n.php');
