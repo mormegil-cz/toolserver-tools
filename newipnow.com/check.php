@@ -1,15 +1,29 @@
 <?php
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once(dirname( __FILE__ ) . '/../includes/db.php');
 
-$db = connect_to_db('cswiki');
+$project = 'cswiki';
+
+$db = connect_to_db($project);
 if (!$db) die('Error connecting to database');
 
 $url = 'http://newipnow.com/';
 $input = @file_get_contents($url) or die("Could not access file: $url");
 
-preg_match_all('/"ip":"([^"]*)"/siU', $input, $matches) or die('Error parsing page');
+preg_match_all('/"ip":"([0-9.]*)"/siU', $input, $matches) or die('Error parsing page');
 $addresses = $matches[1];
+
+header('Content-Type: application/atom+xml');
+echo '<?xml version="1.0" encoding="utf-8"?>';
+echo '<feed xmlns="http://www.w3.org/2005/Atom">';
+echo '<title>Newipnow.com blocking tool</title>';
+echo "<link rel='self' href='http://toolserver.org/~mormegil/newipnow/check.php?project=$project' />";
+echo '<updated>' . date('c') . '</updated>';
+echo '<author><name>Petr Kadlec</name><uri>http://cs.wikipedia.org/wiki/User:Mormegil</uri></author>';
+echo "<id>http://toolserver.org/~mormegil/newipnow.com/check.php?project=$project</id>";
 
 foreach($addresses as $ip)
 {
@@ -18,10 +32,31 @@ foreach($addresses as $ip)
 	$resarray = mysql_fetch_array($queryresult);
 	if (!$resarray || !$resarray[0])
 	{
-		echo "Not blocked: $ip\n";
+		$iphead = @file_get_contents("http://$ip/");
+		$checkflag = "– ?";
+		$description = null;
+		if ($iphead)
+		{
+			$checkflag = " – checked";
+			$description = 'Checked: ' . htmlspecialchars(substr($iphead, 0, 100));
+		}
+		else
+		{
+			$checkflag = " – no response";
+			$description = 'No HTTP response!';
+		}
+		echo "<entry>\n";
+		echo "<title>$ip$checkflag</title>";
+		echo "<link href='http://cs.wikipedia.org/wiki/Special:Block/$ip?wpExpiry=indefinite&amp;wpReason=other&amp;wpReason-other=%7b%7bblocked%20open%20proxy%7cnewipnow.com%7d%7d&amp;wpWatch=1&amp;wpHardBlock=1' />";
+		echo "<id>http://toolserver.org/~mormegil/newipnow.com/check.php?project=$project&amp;block=$ip</id>";
+		echo '<updated>' . date('c') . '</updated>';
+		if ($description) echo "<content>$description</content>";
+		echo "</entry>\n";
 	}
 	else
 	{
-		echo "Blocked: $ip\n";
+		echo "<!-- Already blocked: $ip -->\n";
 	}
 }
+
+echo '</feed>';
