@@ -5,9 +5,10 @@ ini_set('display_errors', 1);
 
 require_once(dirname( __FILE__ ) . '/../includes/db.php');
 
-$project = 'cswiki';
+$project = 'cs';
+$projectdb = $project . 'wiki';
 
-$db = connect_to_db($project);
+$db = connect_to_db($projectdb);
 if (!$db) die('Error connecting to database');
 
 $url = 'http://newipnow.com/';
@@ -22,7 +23,7 @@ echo '<feed xmlns="http://www.w3.org/2005/Atom">';
 echo '<title>Newipnow.com blocking tool</title>';
 echo "<link rel='self' href='http://toolserver.org/~mormegil/newipnow/check.php?project=$project' />";
 echo '<updated>' . date('c') . '</updated>';
-echo '<author><name>Petr Kadlec</name><uri>http://cs.wikipedia.org/wiki/User:Mormegil</uri></author>';
+echo '<author><name>Petr Kadlec</name><uri>https://$project.wikipedia.org/wiki/User:Mormegil</uri></author>';
 echo "<id>http://toolserver.org/~mormegil/newipnow.com/check.php?project=$project</id>";
 
 foreach($addresses as $ip)
@@ -47,7 +48,7 @@ foreach($addresses as $ip)
 		}
 		echo "<entry>\n";
 		echo "<title>$ip$checkflag</title>";
-		echo "<link href='http://cs.wikipedia.org/wiki/Special:Block/$ip?wpExpiry=indefinite&amp;wpReason=other&amp;wpReason-other=%7b%7bblocked%20open%20proxy%7cnewipnow.com%7d%7d&amp;wpWatch=1&amp;wpHardBlock=1' />";
+		echo "<link href='https://$project.wikipedia.org/wiki/Special:Block/$ip?wpExpiry=indefinite&amp;wpReason=other&amp;wpReason-other=%7b%7bblocked%20open%20proxy%7cnewipnow.com%7d%7d&amp;wpWatch=1&amp;wpHardBlock=1' />";
 		echo "<id>http://toolserver.org/~mormegil/newipnow.com/check.php?project=$project&amp;block=$ip</id>";
 		echo '<updated>' . date('c') . '</updated>';
 		if ($description) echo "<content>$description</content>";
