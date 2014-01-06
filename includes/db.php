@@ -20,7 +20,7 @@
 function running_on_toolserver()
 {
     if (!isset($_SERVER['SERVER_NAME'])) return isset($_SERVER['SSH_CONNECTION']);
-    return preg_match("/\btoolserver\.org$/", $_SERVER['SERVER_NAME']) ? true : false;
+    return preg_match("/\wmflabs\.org$/", $_SERVER['SERVER_NAME']) ? true : false;
 }
 
 function running_from_shell()
@@ -32,9 +32,9 @@ function connect_to_db($dbname)
 {
     if (running_on_toolserver())
     {
-		$dbname = str_replace('-', '_', $dbname);
-        $toolserver_mycnf = parse_ini_file('/home/' . get_current_user() . '/.my.cnf');
-        $db = mysql_connect("$dbname-p.rrdb.toolserver.org", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
+        $dbname = str_replace('-', '_', $dbname);
+        $toolserver_mycnf = parse_ini_file(__DIR__ . '/../../replica.my.cnf');
+        $db = mysql_connect("$dbname.labsdb", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
         if (!$db) return null;
         if (!mysql_select_db("{$dbname}_p", $db)) return null;
         unset($toolserver_mycnf);
