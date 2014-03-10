@@ -31,7 +31,7 @@
 	while (($file = readdir($dh)) !== false) {
 		if ($file[0] != '.' && is_dir($file) && file_exists($file . '/index.php'))
 		{
-			echo "<li><a href='$file'>$file</a></li>\n";
+			echo "<li><a href='$file/'>$file</a></li>\n";
 		}
     }
 
