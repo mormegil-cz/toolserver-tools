@@ -1,6 +1,6 @@
 <?php
 /*
-    Copyright © 2015 Petr Kadlec <mormegil@centrum.cz>
+    Copyright Â© 2015 Petr Kadlec <mormegil@centrum.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,17 +30,17 @@ $user = get_variable_or_null('user');
 
 $award_definitions = array();
 $award_definitions[] = array('Medaile mistra Wikipedie', 50000, 5 * 365);
-$award_definitions[] = array('Veterán I. tøídy', 40000, 4 * 365 + 183);
-$award_definitions[] = array('Veterán II. tøídy', 30000, 4 * 365);
-$award_definitions[] = array('Veterán III. tøídy', 20000, 3 * 365 + 183);
-$award_definitions[] = array('Medaile profesionálního uivatele', 16000, 3 * 365);
-$award_definitions[] = array('Wikipedista I. tøídy', 12000, 2 * 365 + 183);
-$award_definitions[] = array('Wikipedista II. tøídy', 8000, 2 * 365);
-$award_definitions[] = array('Wikipedista III. tøídy', 6000, 1 * 365 + 183);
-$award_definitions[] = array('Medaile zkušeného uivatele', 4000, 1 * 365);
+$award_definitions[] = array('VeterÃ¡n I. tÅ™Ã­dy', 40000, 4 * 365 + 183);
+$award_definitions[] = array('VeterÃ¡n II. tÅ™Ã­dy', 30000, 4 * 365);
+$award_definitions[] = array('VeterÃ¡n III. tÅ™Ã­dy', 20000, 3 * 365 + 183);
+$award_definitions[] = array('Medaile profesionÃ¡lnÃ­ho uÅ¾ivatele', 16000, 3 * 365);
+$award_definitions[] = array('Wikipedista I. tÅ™Ã­dy', 12000, 2 * 365 + 183);
+$award_definitions[] = array('Wikipedista II. tÅ™Ã­dy', 8000, 2 * 365);
+$award_definitions[] = array('Wikipedista III. tÅ™Ã­dy', 6000, 1 * 365 + 183);
+$award_definitions[] = array('Medaile zkuÅ¡enÃ©ho uÅ¾ivatele', 4000, 1 * 365);
 $award_definitions[] = array('Student', 2000, 183);
-$award_definitions[] = array('Uèeò', 1000, 91);
-$award_definitions[] = array('Nováèek', 200, 30);
+$award_definitions[] = array('UÄeÅˆ', 1000, 91);
+$award_definitions[] = array('NovÃ¡Äek', 200, 30);
 
 
 date_default_timezone_set('UTC');
