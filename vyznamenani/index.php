@@ -108,8 +108,8 @@ for ($i = 0; $i < count($award_definitions); ++$i) {
 	//echo '<h2 id="' . $def[3] . '">' . htmlspecialchars($def[0]) . '</h2>';
 	echo '<h2>' . htmlspecialchars($def[0]) . '</h2>';
 	echo '<ul>';
-	for ($j = 0; $i < count($list); ++$j) {
-		$user = $list[j];
+	for ($j = 0; $j < count($list); ++$j) {
+		$user = $list[$j];
 		echo '<li><a href="https://cs.wikipedia.org/wiki/Wikipedista:' . htmlspecialchars(str_replace($user[0], ' ', '_'), ENT_QUOTES) . '">' . htmlspecialchars($user[0]) . '</a></li>';
 	}
 	echo '</ul>';
