@@ -110,7 +110,7 @@ for ($i = 0; $i < count($award_definitions); ++$i) {
 	echo '<ul>';
 	for ($j = 0; $j < count($list); ++$j) {
 		$user = $list[$j];
-		echo '<li><a href="https://cs.wikipedia.org/wiki/Wikipedista:' . htmlspecialchars(str_replace($user[0], ' ', '_'), ENT_QUOTES) . '">' . htmlspecialchars($user[0]) . '</a></li>';
+		echo '<li><a href="https://cs.wikipedia.org/wiki/Wikipedista:' . htmlspecialchars(str_replace(' ', '_', $user[0]), ENT_QUOTES) . '">' . htmlspecialchars($user[0]) . '</a></li>';
 	}
 	echo '</ul>';
 }
