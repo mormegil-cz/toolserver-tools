@@ -152,13 +152,13 @@ while (!!($row = mysql_fetch_assoc($queryresult))) {
 if ($user) {
 	echo '<p><a href="https://cs.wikipedia.org/wiki/Wikipedista:' . htmlspecialchars(str_replace(' ', '_', $user), ENT_QUOTES) . '">' . htmlspecialchars($user) . '</a> ';
 	if (!$user_row) {
-		echo 'není mně známý uživatel.';
+		echo 'není mně známý uživatel';
 	} else {
 		$editcount = $user_row['user_editcount'];
 		$registration = $user_row['user_registration'];
 		$userid = $user_row['user_id'];
 
-		$firstedit = scalar_query($db, "SELECT MIN(rev_timestamp) FROM revision WHERE rev_user=$userid");
+		$firstedit = scalar_query($db, "SELECT MIN(rev_timestamp) FROM revision_userindex WHERE rev_user=$userid");
 		if (!$firstedit) $firstedit = $registration;
 
 		echo " má na kontě $editcount ";
@@ -173,14 +173,8 @@ if ($user) {
 		echo plural($interval->m, 'měsíc', 'měsíce', 'měsíců');
 		echo " a $interval->d ";
 		echo plural($interval->d, 'den', 'dny', 'dní');
-
-		if ($user_award) {
-			echo ', má tedy nárok na vyznamenání <em>' . htmlspecialchars($def[DEF_TITLE]) . '</em>.';
-		} else {
-			echo ', nemá tedy nárok na žádné vyznamenání za věrnost.';
-		}
 	}
-	echo '</p>';
+	echo '.</p>';
 
 	if ($user_award) {
 		echo '<h2>Dosažení vyznamenání</h2>';
@@ -189,7 +183,7 @@ if ($user) {
 			$def = $award_definitions[$i];
 
 			$skipcount = $def[DEF_MINEDITS] - 1;
-			$nth_edit = scalar_query($db, "SELECT rev_timestamp FROM revision WHERE rev_user=$userid ORDER BY rev_timestamp LIMIT $skipcount, 1");
+			$nth_edit = scalar_query($db, "SELECT rev_timestamp FROM revision_userindex WHERE rev_user=$userid ORDER BY rev_timestamp LIMIT $skipcount, 1");
 			if (!$nth_edit) break;
 
 			$timelimit = clone $firstedit_date;
@@ -199,6 +193,7 @@ if ($user) {
 			if ($timelimit <= $nthedit_date) {
 				$awarded_date = $nthedit_date;
 			} else {
+				if ($timelimit > $now) break;
 				$awarded_date = $timelimit;
 			}
 
