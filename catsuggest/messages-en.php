@@ -1,7 +1,7 @@
 <?php
 
 $messages = array(
-'title' => 'Category completer',
+'title' => 'Category suggester',
 'homelanguage' => 'Home language:',
 'article' => 'Article:',
 'submit' => 'Go!',
