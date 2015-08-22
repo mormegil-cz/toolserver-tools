@@ -127,6 +127,10 @@ function execute($catname, $homelang, $sourcewiki)
 
 	echo "<h3><a href='$remotecaturl'>$sourcewiki:Category:" . htmlspecialchars($remotecatname) . "</a></h3>";
 
+	if (count($localarticles) === 500) {
+		echo "<p class='warning'>" . wfMsg('warning-limit') . "</p>";
+	}
+
 	while ($row = mysql_fetch_array($result))
 	{
 		++$remotearticles;
