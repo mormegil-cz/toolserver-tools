@@ -1,0 +1,37 @@
+[
+    {
+        "title" : "Category Completer",
+        "description" : "Suggests articles which could be added to a category based on a corresponding category in another language.",
+        "name" : "mormegil-catcompleter",
+        "author" : "[[:cs:User:Mormegil | Petr Kadlec]]",
+        "url" : "http://tools.wmflabs.org/mormegil/catcompleter/"
+    },
+    {
+        "title" : "Category Suggester",
+        "description" : "Suggests categories for an article based on a corresponding article in another language.",
+        "name" : "mormegil-catsuggest",
+        "author" : "[[:cs:User:Mormegil | Petr Kadlec]]",
+        "url" : "http://tools.wmflabs.org/mormegil/catsuggest/"
+    },
+    {
+        "title" : "Category without coordinates",
+        "description" : "Lists articles in a given category without geographical coordinates.",
+        "name" : "mormegil-catwithoutcoords",
+        "author" : "[[:cs:User:Mormegil | Petr Kadlec]]",
+        "url" : "http://tools.wmflabs.org/mormegil/catwithoutcoords/"
+    },
+    {
+        "title" : "Wikipedia Biographical Articles Counter",
+        "description" : "Counts Wikipedia biographical articles per birthyear and deathyear",
+        "name" : "mormegil-natbirths",
+        "author" : "[[:cs:User:Mormegil | Petr Kadlec]]",
+        "url" : "http://tools.wmflabs.org/mormegil/natbirths/"
+    },
+    {
+        "title" : "Random article list",
+        "description" : "Creates a random list of Wikipedia articles of a given size",
+        "name" : "mormegil-randomlist",
+        "author" : "[[:cs:User:Mormegil | Petr Kadlec]]",
+        "url" : "http://tools.wmflabs.org/mormegil/randomlist/"
+    }
+]
