@@ -83,8 +83,7 @@ if (!$queryresult)
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Seznam ukončených žádostí o komentář na české Wikipedii</title>
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/main-ltr.css" media="screen" />
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/shared.css" media="screen" />
+  <link rel="stylesheet" href="//cs.wikipedia.org/w/load.php?debug=false&lang=cs&modules=mediawiki.legacy.shared|mediawiki.sectionAnchor|mediawiki.skinning.interface|mediawiki.ui.button|skins.vector.styles&only=styles&skin=vector&*" media="screen" />
   <script type="text/javascript">
 var skin="none",
 wgUserLanguage="cs",

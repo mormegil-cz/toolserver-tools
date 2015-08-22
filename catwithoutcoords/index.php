@@ -31,8 +31,7 @@ $subcats = isset($_POST['subcats']) && $_POST['project'];
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Category without coordinates</title>
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/main-ltr.css" media="screen" />
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/shared.css" media="screen" />
+  <link rel="stylesheet" href=//en.wikipedia.org/w/load.php?debug=false&lang=en&modules=mediawiki.legacy.shared|mediawiki.sectionAnchor|mediawiki.skinning.interface|mediawiki.ui.button|skins.vector.styles&only=styles&skin=vector&*" media="screen" />
 </head>
 <body class="mediawiki ltr">
     <h1>Category without coordinates</h1>

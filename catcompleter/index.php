@@ -34,8 +34,7 @@ $project = get_variable_or_null('project');
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title><?php echo wfMsg('title'); ?></title>
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/main-ltr.css" media="screen" />
-  <link rel="stylesheet" href="http://cs.wikipedia.org/skins-1.5/common/shared.css" media="screen" />
+  <link rel="stylesheet" href="//cs.wikipedia.org/w/load.php?debug=false&lang=cs&modules=mediawiki.legacy.shared|mediawiki.sectionAnchor|mediawiki.skinning.interface|mediawiki.ui.button|skins.vector.styles&only=styles&skin=vector&*" media="screen" />
 </head>
 <body class="mediawiki ltr">
     <h1><?php echo wfMsg('title'); ?></h1>
