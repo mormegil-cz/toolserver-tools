@@ -48,11 +48,18 @@ $project = get_variable_or_null('project');
 <?php
 
 define('SUGGESTION_COUNT', 0);
-define('SUGGESTION_REMOTES', 1);
+define('SUGGESTION_COUNT_HIDDEN', 1);
+define('SUGGESTION_REMOTES', 2);
+
+define('REMOTE_CATEGORY', 0);
+define('REMOTE_ISHIDDEN', 1);
 
 function catsuggest_compare($a, $b)
 {
-    return $b[SUGGESTION_COUNT] - $a[SUGGESTION_COUNT];
+    if ($a[SUGGESTION_COUNT] === $b[SUGGESTION_COUNT])
+        return $b[SUGGESTION_COUNT_HIDDEN] - $a[SUGGESTION_COUNT_HIDDEN];
+    else
+        return $b[SUGGESTION_COUNT] - $a[SUGGESTION_COUNT];
 }
 
 function execute($articlename, $homelang)
@@ -124,8 +131,9 @@ function execute($articlename, $homelang)
         article.page_id == cl_from => cl_to
         cl_to == category.page_title => category.page_id
         category.page_id == ll_from
+        + pp_propname=='hiddencat' AND category.page_id=pp_page
         */
-        $query = "SELECT ll_title, cl_to FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysql_real_escape_string($homelang, $remotedb) . "' WHERE artpage.page_title = '" . mysql_real_escape_string(title_to_db($remotearticlename), $remotedb) . "' AND artpage.page_namespace = 0 LIMIT 500";
+        $query = "SELECT ll_title, cl_to, pp_page FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysql_real_escape_string($homelang, $remotedb) . "' LEFT JOIN page_props ON catpage.page_id=pp_page AND pp_propname='hiddencat' WHERE artpage.page_title = '" . mysql_real_escape_string(title_to_db($remotearticlename), $remotedb) . "' AND artpage.page_namespace = 0 LIMIT 500";
         $result = mysql_query($query, $remotedb);
         if (!$result)
         {
@@ -139,6 +147,7 @@ function execute($articlename, $homelang)
         {
             $categoryfull = $row[0];
             $remotedbcategory = $row[1];
+            $ishidden = $row[2];
 
             $colon = strpos($categoryfull, ':');
             if ($colon === FALSE)
@@ -156,11 +165,14 @@ function execute($articlename, $homelang)
             {
                 $entry = array();
                 $entry[SUGGESTION_COUNT] = 0;
+                $entry[SUGGESTION_COUNT_HIDDEN] = 0;
                 $entry[SUGGESTION_REMOTES] = array();
             }
 
-            $entry[SUGGESTION_COUNT] += 1;
-            $entry[SUGGESTION_REMOTES][$sourcewiki] = $remotedbcategory;
+            if ($ishidden) $entry[SUGGESTION_COUNT_HIDDEN] += 1;
+            else $entry[SUGGESTION_COUNT] += 1;
+
+            $entry[SUGGESTION_REMOTES][$sourcewiki] = array($remotedbcategory, $ishidden);
             $suggestions[$categoryname] = $entry;
         }
 
@@ -189,15 +201,22 @@ function execute($articlename, $homelang)
             echo "\t\t</td>\n";
 
             echo "\t\t<td>\n";
-            foreach($catdata[SUGGESTION_REMOTES] as $sourcewiki => $remotedbcategory)
+            foreach($catdata[SUGGESTION_REMOTES] as $sourcewiki => $remoteinfo)
             {
+                $remotedbcategory = $remoteinfo[REMOTE_CATEGORY];
+                $ishidden = $remoteinfo[REMOTE_ISHIDDEN];
+
                 $remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
                 // $remotearticleurl = $remotewiki . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotearticlename)), ENT_QUOTES);
 
                 $remotecategory = title_from_db($remotedbcategory);
                 $remotecategoryurl = 'Category:' . str_replace('?', '%3F', $remotedbcategory);
 
-                echo "\t\t\t<a href='$remotewiki" . htmlspecialchars($remotecategoryurl, ENT_QUOTES) . "' title='" . htmlspecialchars($remotecategory) . "'>" . htmlspecialchars($sourcewiki) . "</a>\n";
+                echo "\t\t\t";
+                if ($ishidden) echo "<s>";
+                echo "<a href='$remotewiki" . htmlspecialchars($remotecategoryurl, ENT_QUOTES) . "' title='" . htmlspecialchars($remotecategory) . "'>" . htmlspecialchars($sourcewiki) . "</a>";
+                if ($ishidden) echo "</s>";
+                echo "\n";
             }
             echo "\t\t</td>\n";
 
