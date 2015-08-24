@@ -47,7 +47,15 @@ $project = get_variable_or_null('project');
         </table>
 <?php
 
-function execute($articlename, $homelang, $sourcewiki)
+define('SUGGESTION_COUNT', 0);
+define('SUGGESTION_REMOTES', 1);
+
+function catsuggest_compare($a, $b)
+{
+    return $b[SUGGESTION_COUNT] - $a[SUGGESTION_COUNT];
+}
+
+function execute($articlename, $homelang)
 {
     $db = connect_to_db($homelang . 'wiki');
     if (!$db)
@@ -56,19 +64,12 @@ function execute($articlename, $homelang, $sourcewiki)
         return;
     }
 
-	$remotedb = connect_to_db($sourcewiki . 'wiki');
-	if (!$remotedb)
-	{
-        echo "<p class='error'>" . format_message('error-sourcedb', $sourcewiki) . "</p>";
-		return;
-	}
+    $articlename = title_to_db($articlename);
+    $articleurl = str_replace('&', '%26', $articlename);
 
-	$articlename = title_to_db($articlename);
-	$articleurl = str_replace('&', '%26', $articlename);
-
-	echo "<!-- Loading interwiki -->\n";
-	flush();
-	$query = "SELECT ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($articlename, $db) . "' AND page_namespace = 0 AND ll_lang='" . mysql_real_escape_string($sourcewiki, $db) . "'";
+    echo "<!-- Loading interwiki -->\n";
+    flush();
+    $query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($articlename, $db) . "' AND page_namespace = 0";
     $queryresult = mysql_query($query, $db);
     if (!$queryresult)
     {
@@ -76,158 +77,156 @@ function execute($articlename, $homelang, $sourcewiki)
         return;
     }
 
-	$remotearticlename = null;
-	if ($row = mysql_fetch_assoc($queryresult))
+    $remotearticlenames = array();
+    while ($row = mysql_fetch_assoc($queryresult))
     {
-		$remotearticlename = $row['ll_title'];
-	}
-	else
-	{
-        echo "<p class='error'>" . wfMsg('error-missingiw') . "</p>";
-		return;
-	}
+        $remotearticlenames[$row['ll_lang']] = $row['ll_title'];
+    }
+    if (!count($remotearticlenames)) {
+        echo "<p class='error'>" . wfMsg('error-noiw') . "</p>";
+        return;
+    }
 
     echo "<!-- Loading local categories -->\n";
-	flush();
-	$queryresult = mysql_query("SELECT cl_to FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE page_title = '" . mysql_real_escape_string(title_to_db($articlename), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
+    flush();
+    $queryresult = mysql_query("SELECT cl_to FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE page_title = '" . mysql_real_escape_string(title_to_db($articlename), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
     if (!$queryresult)
     {
         echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
         return;
     }
 
-	$localcategories = array();
+    $localcategories = array();
     while ($row = mysql_fetch_array($queryresult))
     {
-		$localcategories[$row[0]] = 1;
-	}
-
-	echo "<!-- Starting interwiki processing -->\n";
-	flush();
-	$countmissing = 0;
-	$remotecategories = 0;
-	$homewiki = 'http://' . htmlspecialchars($homelang, ENT_QUOTES) . '.wikipedia.org/wiki/';
-	$remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
-	$remotearticleurl = $remotewiki . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotearticlename)), ENT_QUOTES);
-
-    /*
-    article.page_title => article.page_id
-    article.page_id == cl_from => cl_to
-    cl_to == category.page_title => category.page_id
-    category.page_id == ll_from
-    */
-    $query = "SELECT ll_title, cl_to FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysql_real_escape_string($homelang, $remotedb) . "' WHERE artpage.page_title = '" . mysql_real_escape_string(title_to_db($remotearticlename), $remotedb) . "' AND artpage.page_namespace = 0 LIMIT 500";
-	$result = mysql_query($query, $remotedb);
-	if (!$result)
-	{
-        echo "<p class='error'>" . wfMsg('error-remotequery') . "</p>";
-		return;
-	}
-
-	echo "<h3><a href='$remotearticleurl'>$sourcewiki:" . htmlspecialchars($remotearticlename) . "</a></h3>";
-
-	while ($row = mysql_fetch_array($result))
-	{
-		++$remotecategories;
-		$categoryfull = $row[0];
-		$remotedbcategory = $row[1];
-
-		$colon = strpos($categoryfull, ':');
-		if ($colon === FALSE)
-		{
-			echo "<!-- Bad interwiki: " . htmlspecialchars($categoryfull) . " -->\n";
-			continue;
-		}
-        $categoryname = title_from_db(substr($categoryfull, $colon + 1));
-		$dbcategory = title_to_db($categoryname);
-		if (!array_key_exists($dbcategory, $localcategories))
-		{
-			$remotecategory = title_from_db($remotedbcategory);
-			$remotecategoryurl = 'Category:' . str_replace('?', '%3F', $remotedbcategory);
-			$categoryurl = 'Category:' . str_replace('?', '%3F', $dbcategory);
-
-			if ($countmissing == 0)
-			{
-				echo "<table class='wikitable sortable'>\n";
-				echo "<tr><th>" . wfMsg('header-remote') . "</th><th>" . wfMsg('header-local') . "</th><th>" . wfMsg('header-hotcat') . "</th></tr>\n";
-			}
-
-			echo "\t<tr>\n";
-			echo "\t\t<td><a href='$remotewiki" . htmlspecialchars($remotecategoryurl, ENT_QUOTES) . "'>" . htmlspecialchars($remotecategory) . "</td>\n";
-			echo "\t\t<td>\n";
-			echo "\t\t\t<a href='$homewiki" . htmlspecialchars($categoryurl, ENT_QUOTES) . "'>" . htmlspecialchars($categoryname) . "</a>\n";
-			echo "\t\t</td>\n";
-			echo "\t\t<td>\n";
-			echo "\t\t\t(<a href='$homewiki" . htmlspecialchars($articleurl, ENT_QUOTES) . "?action=edit&hotcat_comment=%20(CatSuggest%20via%20[[$sourcewiki:$remotearticlename]])&amp;hotcat_newcat=" . htmlspecialchars($categoryurl, ENT_QUOTES) . "'>+</a>)\n";
-			echo "\t\t</td>\n";
-			echo "\t</tr>\n";
-			flush();
-
-			++$countmissing;
-		}
-	}
-
-	if ($countmissing == 0)
-	{
-		echo "<p>" . format_message('nothingtodo', $homelang, count($localcategories), $sourcewiki, $remotecategories) . "</p>";
-		return;
-	}
-	else
-	{
-		echo "</table>";
-	}
-}
-
-function sourcewikichoice($articlename, $homelang)
-{
-    $db = connect_to_db($homelang . 'wiki');
-    if (!$db)
-    {
-        echo "<p class='error'>" . wfMsg('error-db') . "</p>";
-        return;
+        $localcategories[$row[0]] = 1;
     }
 
-	$articlename = title_to_db($articlename);
+    echo "<!-- Starting interwiki processing -->\n";
+    flush();
 
-	$query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($articlename, $db) . "' AND page_namespace = 0";
-    $queryresult = mysql_query($query, $db);
-    if (!$queryresult)
+    $homewiki = 'http://' . htmlspecialchars($homelang, ENT_QUOTES) . '.wikipedia.org/wiki/';
+
+    $suggestions = array();
+    foreach($remotearticlenames as $sourcewiki => $remotearticlename)
     {
-        echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
-        return;
+        echo "<!-- " . htmlspecialchars($sourcewiki) . " -->\n";
+
+        $remotedb = connect_to_db($sourcewiki . 'wiki');
+        if (!$remotedb)
+        {
+            echo "<p class='error'>" . format_message('error-sourcedb', $sourcewiki) . "</p>";
+            return;
+        }
+
+        /*
+        article.page_title => article.page_id
+        article.page_id == cl_from => cl_to
+        cl_to == category.page_title => category.page_id
+        category.page_id == ll_from
+        */
+        $query = "SELECT ll_title, cl_to FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysql_real_escape_string($homelang, $remotedb) . "' WHERE artpage.page_title = '" . mysql_real_escape_string(title_to_db($remotearticlename), $remotedb) . "' AND artpage.page_namespace = 0 LIMIT 500";
+        $result = mysql_query($query, $remotedb);
+        if (!$result)
+        {
+            echo "<p class='error'>" . wfMsg('error-remotequery') . "</p>";
+            return;
+        }
+
+        // echo "<h3><a href='$remotearticleurl'>$sourcewiki:" . htmlspecialchars($remotearticlename) . "</a></h3>";
+
+        while ($row = mysql_fetch_array($result))
+        {
+            $categoryfull = $row[0];
+            $remotedbcategory = $row[1];
+
+            $colon = strpos($categoryfull, ':');
+            if ($colon === FALSE)
+            {
+                echo "<!-- Bad interwiki: " . htmlspecialchars($categoryfull) . " -->\n";
+                continue;
+            }
+            $categoryname = title_from_db(substr($categoryfull, $colon + 1));
+
+            if (array_key_exists($categoryname, $suggestions))
+            {
+                $entry = $suggestions[$categoryname];
+            }
+            else
+            {
+                $entry = array();
+                $entry[SUGGESTION_COUNT] = 0;
+                $entry[SUGGESTION_REMOTES] = array();
+            }
+
+            $entry[SUGGESTION_COUNT] += 1;
+            $entry[SUGGESTION_REMOTES][$sourcewiki] = $remotedbcategory;
+            $suggestions[$categoryname] = $entry;
+        }
+
+        mysql_close($remotedb);
     }
 
-	$first = true;
-	while ($row = mysql_fetch_assoc($queryresult))
-    {
-		$lang = $row['ll_lang'];
-		$title = $row['ll_title'];
-		if ($first)
-		{
-			echo "<h2>" . wfMsg('choosesource') . "</h2>";
-			$first = false;
-		}
-        echo "<input type='submit' name='sourcewiki' value='$lang' />";
-		$first = false;
-	}
+    uasort($suggestions, "catsuggest_compare");
 
-	if ($first)
-	{
-        echo "<p class='error'>" . wfMsg('error-noiw') . "</p>";
-	}
+    $countmissing = 0;
+    foreach($suggestions as $categoryname => $catdata)
+    {
+        $dbcategory = title_to_db($categoryname);
+        if (!array_key_exists($dbcategory, $localcategories))
+        {
+            $categoryurl = 'Category:' . str_replace('?', '%3F', $dbcategory);
+
+            if ($countmissing == 0)
+            {
+                echo "<table class='wikitable sortable'>\n";
+                echo "<tr class='header'><th>" . wfMsg('header-local') . "</th><th>" . wfMsg('header-remote') . "</th><th>" . wfMsg('header-hotcat') . "</th></tr>\n";
+            }
+
+            echo "\t<tr>\n";
+            echo "\t\t<td>\n";
+            echo "\t\t\t<a href='$homewiki" . htmlspecialchars($categoryurl, ENT_QUOTES) . "'>" . htmlspecialchars($categoryname) . "</a>\n";
+            echo "\t\t</td>\n";
+
+            echo "\t\t<td>\n";
+            foreach($catdata[SUGGESTION_REMOTES] as $sourcewiki => $remotedbcategory)
+            {
+                $remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
+                // $remotearticleurl = $remotewiki . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotearticlename)), ENT_QUOTES);
+
+                $remotecategory = title_from_db($remotedbcategory);
+                $remotecategoryurl = 'Category:' . str_replace('?', '%3F', $remotedbcategory);
+
+                echo "\t\t\t<a href='$remotewiki" . htmlspecialchars($remotecategoryurl, ENT_QUOTES) . "' title='" . htmlspecialchars($remotecategory) . "'>" . htmlspecialchars($sourcewiki) . "</a>\n";
+            }
+            echo "\t\t</td>\n";
+
+            // echo "\t\t<td><a href='$remotewiki" . htmlspecialchars($remotecategoryurl, ENT_QUOTES) . "'>" . htmlspecialchars($remotecategory) . "</td>\n";
+
+            echo "\t\t<td>\n";
+            echo "\t\t\t(<a href='$homewiki" . htmlspecialchars($articleurl, ENT_QUOTES) . "?action=edit&hotcat_comment=%20(via CatSuggest)&amp;hotcat_newcat=" . htmlspecialchars($categoryurl, ENT_QUOTES) . "'>+</a>)\n";
+            echo "\t\t</td>\n";
+            echo "\t</tr>\n";
+            flush();
+
+            ++$countmissing;
+        }
+    }
+
+    if ($countmissing == 0)
+    {
+        echo "<p>" . format_message('nothingtodo') . "</p>";
+        return;
+    }
+    else
+    {
+        echo "</table>";
+    }
 }
 
-if ($article && $project)
+if ($article && $project && $_SERVER['REQUEST_METHOD'] === 'POST')
 {
-	$sourcewiki = isset($_POST['sourcewiki']) ? $_POST['sourcewiki'] : null;
-	if ($sourcewiki)
-	{
-		execute($article, $project, $sourcewiki);
-	}
-	else
-	{
-		sourcewikichoice($article, $project);
-	}
+    execute($article, $project);
 }
 ?>
     </form>

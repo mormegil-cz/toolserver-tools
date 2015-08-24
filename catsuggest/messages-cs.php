@@ -15,6 +15,5 @@ $messages = array(
 'header-remote' => 'Vzdálený',
 'header-local' => 'Místní',
 'header-hotcat' => 'HotCat',
-'nothingtodo' => 'Není co dělat… $2 kategorií na $1, $4 kategorií s interwiki na $3',
-'choosesource' => 'Zvolte zdrojový jazyk'
+'nothingtodo' => 'Není co přidat'
 );

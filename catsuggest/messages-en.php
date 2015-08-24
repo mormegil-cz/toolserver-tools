@@ -15,6 +15,5 @@ $messages = array(
 'header-remote' => 'Remote',
 'header-local' => 'Local',
 'header-hotcat' => 'HotCat',
-'nothingtodo' => 'Nothing to do... $2 categories at $1, $4 categories with interwiki at $3',
-'choosesource' => 'Choose source language'
+'nothingtodo' => 'Nothing to add...'
 );
