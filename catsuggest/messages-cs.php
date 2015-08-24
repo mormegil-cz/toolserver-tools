@@ -15,5 +15,6 @@ $messages = array(
 'header-remote' => 'Vzdálený',
 'header-local' => 'Místní',
 'header-hotcat' => 'HotCat',
-'nothingtodo' => 'Není co přidat'
+'nothingtodo' => 'Není co přidat',
+'copy' => 'Kopírovat do schránky'
 );

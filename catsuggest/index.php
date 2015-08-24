@@ -191,8 +191,11 @@ function execute($articlename, $homelang)
 
             if ($countmissing == 0)
             {
-                echo "<table class='wikitable sortable'>\n";
+                echo "<table id='suggestions' class='wikitable sortable'>\n";
+                echo "<thead>\n";
                 echo "<tr class='header'><th>" . wfMsg('header-local') . "</th><th>" . wfMsg('header-remote') . "</th><th>" . wfMsg('header-hotcat') . "</th></tr>\n";
+                echo "</thead>\n";
+                echo "<tbody>\n";
             }
 
             echo "\t<tr>\n";
@@ -239,7 +242,9 @@ function execute($articlename, $homelang)
     }
     else
     {
+        echo "</tbody>\n";
         echo "</table>";
+        echo "<div id='scratchspace'></div>";
     }
 }
 
@@ -249,5 +254,13 @@ if ($article && $project && $_SERVER['REQUEST_METHOD'] === 'POST')
 }
 ?>
     </form>
+    <script src="//en.wikipedia.org/w/load.php?debug=false&lang=en&modules=jquery&only=scripts&skin=vector"></script>
+    <script>
+    window['uiMessages'] = { categoryns: '<?php
+    // TODO: Fix this hack
+    echo $uselang === 'cs' ? 'Kategorie' : 'Category';
+    ?>', copy: '<?php echo wfMsg('copy'); ?>' };
+    </script>
+    <script src="script.js"></script>
 </body>
 </html>

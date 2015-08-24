@@ -15,5 +15,6 @@ $messages = array(
 'header-remote' => 'Remote',
 'header-local' => 'Local',
 'header-hotcat' => 'HotCat',
-'nothingtodo' => 'Nothing to add...'
+'nothingtodo' => 'Nothing to add...',
+'copy' => 'Copy to clipboard'
 );
