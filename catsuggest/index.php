@@ -258,7 +258,7 @@ if ($article && $project && $_SERVER['REQUEST_METHOD'] === 'POST')
     <script>
     window['uiMessages'] = { categoryns: '<?php
     // TODO: Fix this hack
-    echo $uselang === 'cs' ? 'Kategorie' : 'Category';
+    echo $project === 'cs' ? 'Kategorie' : 'Category';
     ?>', copy: '<?php echo wfMsg('copy'); ?>' };
     </script>
     <script src="script.js"></script>
