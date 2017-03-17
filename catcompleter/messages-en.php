@@ -15,8 +15,12 @@ $messages = array(
 'error-remotequery' => 'Error executing source query',
 'header-remote' => 'Remote',
 'header-local' => 'Local',
+'header-edit' => 'Edit',
 'header-hotcat' => 'HotCat',
+'edit-link' => 'e',
 'nothingtodo' => 'Nothing to do... $2 articles at $1, $4 articles with interwiki at $3',
 'choosesource' => 'Choose source language',
-'warning-limit' => 'Warning: The source category already contains too many articles, false positives may be displayed'
+'warning-limit' => 'Warning: The source category already contains too many articles, false positives may be displayed',
+'show-list' => 'Show list as wikimarkup',
+'copy' => 'Copy to clipboard'
 );

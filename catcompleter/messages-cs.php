@@ -15,8 +15,12 @@ $messages = array(
 'error-remotequery' => 'Chyba při provádění databázového dotazu na vzdálené wiki',
 'header-remote' => 'Vzdálený',
 'header-local' => 'Místní',
+'header-edit' => 'Editovat',
 'header-hotcat' => 'HotCat',
+'edit-link' => 'e',
 'nothingtodo' => 'Není co dělat… $2 článků na $1, $4 článků s interwiki na $3',
 'choosesource' => 'Zvolte zdrojový jazyk',
-'warning-limit' => 'Upozornění: Kategorie již obsahuje velké množství článků, je možné, že jsou zobrazena falešná pozitiva'
+'warning-limit' => 'Upozornění: Kategorie již obsahuje velké množství článků, je možné, že jsou zobrazena falešná pozitiva',
+'show-list' => 'Zobrazit seznam jako wikikód',
+'copy' => 'Kopírovat do schránky'
 );
