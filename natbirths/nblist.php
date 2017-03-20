@@ -130,7 +130,7 @@ $deaths = tails_year($deathcat) ? process_years_quick($deathcat) : process_years
 $now = intval(date('Y'));
 
 header('Content-Type: text/csv; charset=utf-8; header=absent');
-header('Content-Disposition: attachment; filename=natbirths-$project.csv');
+header("Content-Disposition: attachment; filename=natbirths-$project.csv");
 for ($y = 1000; $y <= $now; ++$y)
 {
     $b = isset($births[$y]) ? $births[$y] : 0;
