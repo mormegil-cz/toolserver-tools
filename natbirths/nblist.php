@@ -18,7 +18,7 @@
 */
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 $project = null;
 $recseparator = ';';
@@ -34,8 +34,8 @@ else
 {
   if (!isset($_GET['project'])) {
       header('Status: 301');
-      header('Location: http://toolserver.org/~mormegil/natbirths/');
-      echo('"project" parameter required, use http://toolserver.org/~mormegil/natbirths/');
+      header('Location: http://tools.wmflabs.org/mormegil/natbirths/');
+      echo('"project" parameter required, use http://tools.wmflabs.org/mormegil/natbirths/');
       return;
   }
   $project = $_GET['project'];
@@ -130,6 +130,7 @@ $deaths = tails_year($deathcat) ? process_years_quick($deathcat) : process_years
 $now = intval(date('Y'));
 
 header('Content-Type: text/csv; charset=utf-8; header=absent');
+header('Content-Disposition: attachment; filename=natbirths-$project.csv');
 for ($y = 1000; $y <= $now; ++$y)
 {
     $b = isset($births[$y]) ? $births[$y] : 0;
