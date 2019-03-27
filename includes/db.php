@@ -34,7 +34,7 @@ function connect_to_db($dbname)
     {
         $dbname = str_replace('-', '_', $dbname);
         $toolserver_mycnf = parse_ini_file(__DIR__ . '/../../replica.my.cnf');
-        $db = mysql_connect("$dbname.labsdb", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
+        $db = mysql_connect("$dbname.web.db.svc.eqiad.wmflabs", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
         if (!$db) return null;
         if (!mysql_select_db("{$dbname}_p", $db)) return null;
         unset($toolserver_mycnf);
