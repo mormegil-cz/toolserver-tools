@@ -66,6 +66,10 @@ $project = 'cswiki';
 
 $award_definitions = array();
 $award_definitions['cswiki'] = array();
+$award_definitions['cswiki'][] = array('platinova-medaile-velmistra-wikipedie', 'Platinová medaile velmistra Wikipedie', 100000, new DateInterval('P10Y'));
+$award_definitions['cswiki'][] = array('mudrc-i-tridy', 'Mudrc I. třídy', 85000, new DateInterval('P8Y6M'));
+$award_definitions['cswiki'][] = array('mudrc-ii-tridy', 'Mudrc II. třídy', 70000, new DateInterval('P7Y'));
+$award_definitions['cswiki'][] = array('mudrc-iii-tridy', 'Mudrc III. třídy', 60000, new DateInterval('P6Y'));
 $award_definitions['cswiki'][] = array('medaile-mistra-wikipedie', 'Medaile mistra Wikipedie', 50000, new DateInterval('P5Y'));
 $award_definitions['cswiki'][] = array('veteran-i-tridy', 'Veterán I. třídy', 40000, new DateInterval('P4Y6M'));
 $award_definitions['cswiki'][] = array('veteran-ii-tridy', 'Veterán II. třídy', 30000, new DateInterval('P4Y'));
