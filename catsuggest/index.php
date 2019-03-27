@@ -123,7 +123,7 @@ function execute($articlename, $homelang)
         if (!$remotedb)
         {
             echo "<p class='error'>" . format_message('error-sourcedb', $sourcewiki) . "</p>";
-            return;
+            continue;
         }
 
         /*
@@ -137,8 +137,8 @@ function execute($articlename, $homelang)
         $result = mysql_query($query, $remotedb);
         if (!$result)
         {
-            echo "<p class='error'>" . wfMsg('error-remotequery') . "</p>";
-            return;
+            echo "<p class='error'>" . format_message('error-remotequery', $sourcewiki) . "</p>";
+            continue;
         }
 
         // echo "<h3><a href='$remotearticleurl'>$sourcewiki:" . htmlspecialchars($remotearticlename) . "</a></h3>";
