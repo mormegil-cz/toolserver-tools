@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>NK2WP Test</title>
+  <meta http-equiv="Content-Type" value="text/html; charset=utf8" />
+
+  <script type="text/javascript">// <![CDATA[
+	function shownk2wp(links)
+	{
+		if (links == null)
+		{
+			alert('problém');
+			return;
+		}
+		var found = false;
+		for(var i = 0; i < links.length; ++i)
+		{
+			var item = document.createElement('li');
+			var link = document.createElement('a');
+			link.href = links[i].url;
+			link.innerHTML = links[i].title;
+			item.appendChild(link);
+			document.getElementById('linkwrapper').appendChild(item);
+			found = true;
+		}
+		if (!found)
+		{
+			var item = document.createElement('li');
+			item.innerHTML = 'No results found';
+			document.getElementById('linkwrapper').appendChild(item);
+		}
+	}
+
+	function showlinks()
+	{
+		var script = document.createElement('script');
+		script.type = 'text/javascript';
+		script.src = 'http://nk2wp.mormegil.info/linkjs.php?autid=jn19981002129&callback=shownk2wp';
+		document.body.appendChild(script);
+	}
+	// ]]>
+  </script>
+</head>
+
+ <body onload='showlinks()'>
+  <h1>NK2WP Test</h1>
+  <ul id='linkwrapper'>
+  </ul>
+ </body>
+</html>

@@ -1,28 +1,12 @@
 <?php
-/*
-    Copyright © 2010 Petr Kadlec <mormegil@centrum.cz>
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
 
 // ----- config -----
 
 define('MAX_AUTID_LENGTH', 32);
 define('MAX_CALLBACK_LENGTH', 32);
 define('MAX_CACHING_TIME', 86400);
-define('LOGGING_ENABLED', false);
+define('API_TIMEOUT', 30);
+define('LOGGING_ENABLED', true);
 
 // ------------------
 
@@ -50,47 +34,81 @@ if (strlen($callback) > MAX_CALLBACK_LENGTH || !preg_match('/^[a-zA-Z_][a-zA-Z_0
 	return;
 }
 
-// ---- perform the DB query ----
+// ---- perform the API request ----
 
-$toolserver_mycnf = parse_ini_file('/home/' . get_current_user() . '/.my.cnf');
-$db = mysql_connect('cswiki-p.db.toolserver.org', $toolserver_mycnf['user'], $toolserver_mycnf['password']);
-if (!$db)
-{
-	header('Status: 500');
-	echo '// Error connecting to database';
-	echo "$callback(null);";
-	return;
-}
-if (!mysql_select_db('cswiki_p', $db))
-{
-	header('Status: 500');
-	echo '// Error selecting database';
-	echo "$callback(null);";
-	return;
-}
-unset($toolserver_mycnf);
+$autid = urlencode($autid);
 
-$queryresult = mysql_query("SELECT page_namespace, page_title FROM categorylinks INNER JOIN page ON cl_from=page_id WHERE cl_to='Články_s_odkazem_na_autoritní_záznam' AND cl_sortkey='" . mysql_real_escape_string($autid) . "'", $db);
-if (!$queryresult) {
+$nocache = time();
+$sparqlurl = "https://query.wikidata.org/bigdata/namespace/wdq/sparql?query=SELECT%20%3FentityLabel%20%3FwikiLink%20%3FlinkLanguage%0AWHERE%20%0A%7B%0A%09%3Fentity%20wdt%3AP691%20%22$autid%22%20.%0A%0A%09%3FwikiLink%20a%20schema%3AArticle%20%3B%0A%09%09schema%3Aabout%20%3Fentity%20%3B%0A%09%09schema%3AinLanguage%20%3FlinkLanguage%20.%0A%0A%20%20%20%20SERVICE%20wikibase%3Alabel%20%7B%0A%09%09bd%3AserviceParam%20wikibase%3Alanguage%20%22cs%22%20.%0A%09%7D%0A%7D&format=json&_=$nocache";
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $sparqlurl);
+curl_setopt($ch, CURLOPT_HEADER, 0);
+curl_setopt($ch, CURLOPT_USERAGENT, 'NK2WP/2.0 (nkp.cz linker service, run by <petr.kadlec@gmail.com>)');
+curl_setopt($ch, CURLOPT_HTTPHEADER, array('From: petr.kadlec@gmail.com'));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_TIMEOUT, API_TIMEOUT);
+$curlresponse = curl_exec($ch);
+if ($curlresponse === FALSE)
+{
+	$curlerror = curl_error($ch);
+	curl_close($ch);
 	header('Status: 500');
-	echo '// Error executing query';
+	echo "// Could not download data: " . json_encode($curlerror) . "\n";
 	echo "$callback(null);";
 	return;
 }
+curl_close($ch);
+
+$retrievedData = json_decode($curlresponse, true);
 
 // ---- process the result ----
 
-$retrievedData = array();
-$resultitems = array();
-while ($row = mysql_fetch_row($queryresult))
+if (!$retrievedData)
 {
-    $ns = $row[0];
-    if ($ns != 0) continue;
+	header('Status: 500');
+	echo "// Could not process data\n";
+	echo "$callback(null);";
+	return;
+}
 
-    $title = $row[1];
+$resultLink = null;
+$linksPerLanguage = array();
+$titlePerLanguage = array();
+$resultBindings = $retrievedData['results']['bindings'];
+$resultBindings = array_filter($resultBindings, function($binding) {
+    return preg_match('#^https://[^.]*\.wikipedia\.org/#', $binding['wikiLink']['value']);
+});
+$firstResult = reset($resultBindings);
+if ($firstResult)
+{
+	$resultTitle = $firstResult['entityLabel']['value'];
+	$resultLink = $firstResult['wikiLink']['value'];
+	foreach($resultBindings as $item)
+	{
+		$linkLang = $item['linkLanguage']['value'];
+		$linksPerLanguage[$linkLang] = $item['wikiLink']['value'];
+		$titlePerLanguage[$linkLang] = $item['entityLabel']['value'];
+	}
+	foreach(array('cs', 'en', 'sk', 'de', 'fr', 'pl', 'ru', 'it', 'es', 'pt') as $lang)
+	{
+		if (isset($linksPerLanguage[$lang]))
+		{
+			$resultLink = $linksPerLanguage[$lang];
+			if (isset($titlePerLanguage[$lang]))
+			{
+				$resultTitle = $titlePerLanguage[$lang];
+			}
+			break;
+		}
+	}
+}
 
-	$url = 'http://cs.wikipedia.org/wiki/' . urlencode($title);
-	$resultitems[] = array('title' => str_replace('_', ' ', $title), 'url' => $url);
+$resultitems = array();
+if ($resultLink)
+{
+	$resultLink = str_replace('%20', '_', $resultLink);
+	$resultitems[] = array('title' => $resultTitle, 'url' => $resultLink);
 }
 $result = $callback . '(' . json_encode($resultitems) . ');';
 
