@@ -39,12 +39,12 @@ if (strlen($callback) > MAX_CALLBACK_LENGTH || !preg_match('/^[a-zA-Z_][a-zA-Z_0
 $autid = urlencode($autid);
 
 $nocache = time();
-$sparqlurl = "https://query.wikidata.org/bigdata/namespace/wdq/sparql?query=SELECT%20%3FentityLabel%20%3FwikiLink%20%3FlinkLanguage%0AWHERE%20%0A%7B%0A%09%3Fentity%20wdt%3AP691%20%22$autid%22%20.%0A%0A%09%3FwikiLink%20a%20schema%3AArticle%20%3B%0A%09%09schema%3Aabout%20%3Fentity%20%3B%0A%09%09schema%3AinLanguage%20%3FlinkLanguage%20.%0A%0A%20%20%20%20SERVICE%20wikibase%3Alabel%20%7B%0A%09%09bd%3AserviceParam%20wikibase%3Alanguage%20%22cs%22%20.%0A%09%7D%0A%7D&format=json&_=$nocache";
+$sparqlurl = "https://query.wikidata.org/sparql?query=SELECT%20%3Fentity%20%3FentityLabel%20%3FwikiLink%20%3FlinkLanguage%0AWHERE%20%0A%7B%0A%09%3Fentity%20wdt%3AP691%20%22$autid%22%20.%0A%0A%20%20%20%20OPTIONAL%20%7B%0A%09%20%20%3FwikiLink%20a%20schema%3AArticle%20%3B%0A%09%09schema%3Aabout%20%3Fentity%20%3B%0A%09%09schema%3AinLanguage%20%3FlinkLanguage%20.%0A%20%20%20%20%7D%0A%0A%20%20%20%20SERVICE%20wikibase%3Alabel%20%7B%0A%09%09bd%3AserviceParam%20wikibase%3Alanguage%20%22cs%2Cen%2Csk%2Cde%2Cfr%2Cpl%2Cru%2Cit%2Ces%2Cpt%22%20.%0A%09%7D%0A%7D&format=json&_=$nocache";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $sparqlurl);
 curl_setopt($ch, CURLOPT_HEADER, 0);
-curl_setopt($ch, CURLOPT_USERAGENT, 'NK2WP/2.0 (nkp.cz linker service, run by <petr.kadlec@gmail.com>)');
+curl_setopt($ch, CURLOPT_USERAGENT, 'NK2WP/2.1 (nkp.cz linker service, run by <petr.kadlec@gmail.com>)');
 curl_setopt($ch, CURLOPT_HTTPHEADER, array('From: petr.kadlec@gmail.com'));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_TIMEOUT, API_TIMEOUT);
@@ -77,18 +77,21 @@ $linksPerLanguage = array();
 $titlePerLanguage = array();
 $resultBindings = $retrievedData['results']['bindings'];
 $resultBindings = array_filter($resultBindings, function($binding) {
-    return preg_match('#^https://[^.]*\.wikipedia\.org/#', $binding['wikiLink']['value']);
+    return !isset($binding['wikiLink']) || preg_match('#^https://[^.]*\.wikipedia\.org/#', $binding['wikiLink']['value']);
 });
 $firstResult = reset($resultBindings);
 if ($firstResult)
 {
 	$resultTitle = $firstResult['entityLabel']['value'];
-	$resultLink = $firstResult['wikiLink']['value'];
+	$resultLink = isset($firstResult['wikiLink']) ? $firstResult['wikiLink']['value'] : null;
 	foreach($resultBindings as $item)
 	{
-		$linkLang = $item['linkLanguage']['value'];
-		$linksPerLanguage[$linkLang] = $item['wikiLink']['value'];
-		$titlePerLanguage[$linkLang] = $item['entityLabel']['value'];
+		if (isset($item['wikiLink']))
+		{
+			$linkLang = $item['linkLanguage']['value'];
+			$linksPerLanguage[$linkLang] = $item['wikiLink']['value'];
+			$titlePerLanguage[$linkLang] = $item['entityLabel']['value'];
+		}
 	}
 	foreach(array('cs', 'en', 'sk', 'de', 'fr', 'pl', 'ru', 'it', 'es', 'pt') as $lang)
 	{
@@ -101,6 +104,10 @@ if ($firstResult)
 			}
 			break;
 		}
+	}
+	if (!$resultLink)
+	{
+		$resultLink = $firstResult['entity']['value'];
 	}
 }
 
