@@ -36,10 +36,26 @@ if (strlen($callback) > MAX_CALLBACK_LENGTH || !preg_match('/^[a-zA-Z_][a-zA-Z_0
 
 // ---- perform the API request ----
 
-$autid = urlencode($autid);
-
 $nocache = time();
-$sparqlurl = "https://query.wikidata.org/sparql?query=SELECT%20%3Fentity%20%3FentityLabel%20%3FwikiLink%20%3FlinkLanguage%0AWHERE%20%0A%7B%0A%09%3Fentity%20wdt%3AP691%20%22$autid%22%20.%0A%0A%20%20%20%20OPTIONAL%20%7B%0A%09%20%20%3FwikiLink%20a%20schema%3AArticle%20%3B%0A%09%09schema%3Aabout%20%3Fentity%20%3B%0A%09%09schema%3AinLanguage%20%3FlinkLanguage%20.%0A%20%20%20%20%7D%0A%0A%20%20%20%20SERVICE%20wikibase%3Alabel%20%7B%0A%09%09bd%3AserviceParam%20wikibase%3Alanguage%20%22cs%2Cen%2Csk%2Cde%2Cfr%2Cpl%2Cru%2Cit%2Ces%2Cpt%22%20.%0A%09%7D%0A%7D&format=json&_=$nocache";
+$sparqlQuery = urlencode(<<<SPARQL
+SELECT ?entity ?entityLabel ?wikiLink ?linkLanguage
+WHERE
+{
+	?entity p:P691/ps:P691 "$autid" .
+
+    OPTIONAL {
+	  ?wikiLink a schema:Article ;
+		schema:about ?entity ;
+		schema:inLanguage ?linkLanguage .
+    }
+
+    SERVICE wikibase:label {
+		bd:serviceParam wikibase:language "cs,en,sk,de,fr,pl,ru,it,es,pt" .
+	}
+}
+SPARQL
+	);
+$sparqlurl = "https://query.wikidata.org/sparql?query=$sparqlQuery&format=json&_=$nocache";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $sparqlurl);
