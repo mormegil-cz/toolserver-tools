@@ -23,7 +23,7 @@ ini_set('display_errors', 1);
 function connect_to_db($dbname)
 {
 	$dbname = str_replace('-', '_', $dbname);
-	$toolserver_mycnf = parse_ini_file(__DIR__ . '/../../replica.my.cnf');
+	$toolserver_mycnf = parse_ini_file(__DIR__ . '/../replica.my.cnf');
 	$db = mysql_connect("$dbname.labsdb", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
 	if (!$db) return null;
 	if (!mysql_select_db("{$dbname}_p", $db)) return null;
@@ -82,6 +82,9 @@ $award_definitions['cswiki'][] = array('medaile-zkuseneho-uzivatele', 'Medaile z
 $award_definitions['cswiki'][] = array('student', 'Student', 2000, new DateInterval('P6M'));
 $award_definitions['cswiki'][] = array('ucen', 'Učeň', 1000, new DateInterval('P3M'));
 $award_definitions['cswiki'][] = array('novacek', 'Nováček', 200, new DateInterval('P1M'));
+
+$project_userpage_prefix = array();
+$project_userpage_prefix['cswiki'] = 'https://cs.wikipedia.org/wiki/Wikipedista:';
 
 date_default_timezone_set('UTC');
 
@@ -154,15 +157,17 @@ while (!!($row = mysql_fetch_assoc($queryresult))) {
 }
 
 if ($user) {
-	echo '<p><a href="https://cs.wikipedia.org/wiki/Wikipedista:' . htmlspecialchars(str_replace(' ', '_', $user), ENT_QUOTES) . '">' . htmlspecialchars($user) . '</a> ';
+	echo '<p><a href="' . htmlspecialchars($project_userpage_prefix[$project] . str_replace(' ', '_', $user), ENT_QUOTES) . '">' . htmlspecialchars($user) . '</a> ';
 	if (!$user_row) {
-		echo 'není mně známý uživatel';
+		echo 'není mně známý uživatel.</p>';
 	} else {
 		$editcount = $user_row['user_editcount'];
 		$registration = $user_row['user_registration'];
 		$userid = $user_row['user_id'];
 
-		$firstedit = scalar_query($db, "SELECT MIN(rev_timestamp) FROM revision_userindex WHERE rev_user=$userid");
+		$actorid = scalar_query($db, "SELECT actor_id FROM actor_revision WHERE actor_user=$userid");
+
+		$firstedit = !$actorid ? null : scalar_query($db, "SELECT MIN(rev_timestamp) FROM revision_userindex WHERE rev_actor=$actorid");
 		if (!$firstedit) $firstedit = $registration;
 
 		echo " má na kontě $editcount ";
@@ -177,33 +182,33 @@ if ($user) {
 		echo plural($interval->m, 'měsíc', 'měsíce', 'měsíců');
 		echo " a $interval->d ";
 		echo plural($interval->d, 'den', 'dny', 'dní');
-	}
-	echo '.</p>';
+		echo '.</p>';
 
-	if ($user_award) {
-		echo '<h2>Dosažení vyznamenání</h2>';
-		echo '<ul>';
-		for ($i = count($award_definitions) - 1; $i >= 0; --$i) {
-			$def = $award_definitions[$i];
+		if ($user_award && $actorid) {
+			echo '<h2>Dosažení vyznamenání</h2>';
+			echo '<ul>';
+			for ($i = count($award_definitions) - 1; $i >= 0; --$i) {
+				$def = $award_definitions[$i];
 
-			$skipcount = $def[DEF_MINEDITS] - 1;
-			$nth_edit = scalar_query($db, "SELECT rev_timestamp FROM revision_userindex WHERE rev_user=$userid ORDER BY rev_timestamp LIMIT $skipcount, 1");
-			if (!$nth_edit) break;
+				$skipcount = $def[DEF_MINEDITS] - 1;
+				$nth_edit = scalar_query($db, "SELECT rev_timestamp FROM revision_userindex WHERE rev_actor=$actorid ORDER BY rev_timestamp LIMIT $skipcount, 1");
+				if (!$nth_edit) break;
 
-			$timelimit = clone $firstedit_date;
-			$timelimit->add($def[DEF_INTERVAL]);
+				$timelimit = clone $firstedit_date;
+				$timelimit->add($def[DEF_INTERVAL]);
 
-			$nthedit_date = DateTime::createFromFormat('YmdHis', $nth_edit);
-			if ($timelimit <= $nthedit_date) {
-				$awarded_date = $nthedit_date;
-			} else {
-				if ($timelimit > $now) break;
-				$awarded_date = $timelimit;
+				$nthedit_date = DateTime::createFromFormat('YmdHis', $nth_edit);
+				if ($timelimit <= $nthedit_date) {
+					$awarded_date = $nthedit_date;
+				} else {
+					if ($timelimit > $now) break;
+					$awarded_date = $timelimit;
+				}
+
+				echo '<li><em>' . htmlspecialchars($def[DEF_TITLE]) . '</em> – ' . $awarded_date->format('d. m. Y') . '</li>';
 			}
-
-			echo '<li><em>' . htmlspecialchars($def[DEF_TITLE]) . '</em> – ' . $awarded_date->format('d. m. Y') . '</li>';
+			echo '</ul>';
 		}
-		echo '</ul>';
 	}
 } else {
 	for ($i = 0; $i < count($award_definitions); ++$i) {

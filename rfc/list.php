@@ -110,10 +110,16 @@ while ($row = mysql_fetch_row($queryresult))
     $pagetitle = $row[0];
     $pageid = $row[1];
 
-    $oldestres = mysql_query("SELECT rev_user_text, rev_timestamp, rev_id FROM revision WHERE rev_page=$pageid ORDER BY rev_id ASC LIMIT 1");
+    $oldestres = mysql_query("SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id WHERE rev_page=$pageid ORDER BY rev_id ASC LIMIT 1");
+    if (!$oldestres) {
+        die(mysql_error());
+    }
     $oldestrev = mysql_fetch_row($oldestres);
 
-    $newestres = mysql_query("SELECT rev_user_text, rev_timestamp, rev_id FROM revision LEFT JOIN user_groups ON ug_user=rev_user AND ug_group='bot' WHERE rev_page=$pageid AND ug_user IS NULL ORDER BY rev_id DESC LIMIT 1");
+    $newestres = mysql_query("SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id LEFT JOIN user_groups ON ug_user=actor_user AND ug_group='bot' WHERE rev_page=$pageid AND ug_user IS NULL ORDER BY rev_id DESC LIMIT 1");
+    if (!$newestres) {
+        die(mysql_error());
+    }
     $newestrev = mysql_fetch_row($newestres);
 
     $oldestauthor = $oldestrev[0];
