@@ -87,17 +87,14 @@ SPARQL
 	$linksPerLanguage = array();
 	$titlePerLanguage = array();
 	$resultBindings = $retrievedData['results']['bindings'];
-	$resultBindings = array_filter($resultBindings, function($binding) {
-		return !isset($binding['wikiLink']) || preg_match('#^https://[^.]*\.wikipedia\.org/#', $binding['wikiLink']['value']);
-	});
 	$firstResult = reset($resultBindings);
 	if ($firstResult)
 	{
 		$resultTitle = $firstResult['entityLabel']['value'];
-		$resultLink = isset($firstResult['wikiLink']) ? $firstResult['wikiLink']['value'] : null;
+		$resultLink = null;
 		foreach($resultBindings as $item)
 		{
-			if (isset($item['wikiLink']))
+			if (isset($item['wikiLink']) && preg_match('#^https://[^.]*\.wikipedia\.org/#', $item['wikiLink']['value']))
 			{
 				$linkLang = $item['linkLanguage']['value'];
 				$linksPerLanguage[$linkLang] = $item['wikiLink']['value'];
