@@ -50,7 +50,7 @@ function query($id) {
 
 	curl_close($request);
 
-	return json_decode($data, true) || $data;
+	return json_decode($data, true);
 }
 
 function doRedirect($url) {
