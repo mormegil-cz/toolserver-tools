@@ -18,24 +18,12 @@ function showError($msg) {
 			<p id="errorMessage"><?php echo $msg; ?></p>
 			<ul>
 				<li><a href="https://lr.caa.cz/letecky-rejstrik?lang=en">Go to the Aircraft Register</a></li>
-				<li><a href="#" onclick="History.back(); return false;">Go back</a></li>
+				<li><a href="#" onclick="history.back(); return false;">Go back</a></li>
 			</ul>
         </div>
     </body>
 </html>
 <?php
-}
-
-function forwardResponse($responseStr) { 
-	$parts = explode("\r\n\r\n", $responseStr);
-	$headers = array_shift($parts);
-  
-	foreach (explode("\r\n", $headers) as $header) {
-	  $header = trim($header);
-	  if ($header && !preg_match('/^(Strict-Transport-Security|Connection):/', $header)) header($header);
-	}
-  
-	echo implode("\r\n\r\n", $parts);
 }
 
 function query($id) {
