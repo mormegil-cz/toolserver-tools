@@ -40,9 +40,17 @@ function query($id) {
 	curl_setopt($request, CURLOPT_MAXREDIRS, 0);
 	curl_setopt($request, CURLOPT_HTTPHEADER, array('X-Forwarded-For: $xff', 'User-Agent: $userAgent'));
 	$data = curl_exec($request);
+
+	if ($data === false) {
+		$statuscode = curl_getinfo($request, CURLINFO_HTTP_CODE);
+		$errno = curl_errno($request);
+		$errtext = curl_error($request);
+        return "$errno/$statuscode: $errtext";
+	}
+
 	curl_close($request);
 
-	return json_decode($data, true);
+	return json_decode($data, true) || $data;
 }
 
 function doRedirect($url) {
@@ -87,6 +95,7 @@ if (!preg_match('/^([A-Z]{3,4}|[0-9]{4})$/', $suffix)) {
 $data = query($suffix);
 if (!is_array($data) || !isset($data['total']) || !isset($data['rows'])) {
 	showError('Error querying the Aircraft Register.');
+	// var_dump($data);
 	return;
 }
 
