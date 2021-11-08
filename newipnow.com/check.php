@@ -28,9 +28,9 @@ echo "<id>http://toolserver.org/~mormegil/newipnow.com/check.php?project=$projec
 
 foreach($addresses as $ip)
 {
-    $queryresult = mysql_query('SELECT COUNT(*) FROM ipblocks WHERE ipb_address=\'' . mysql_real_escape_string($ip) . '\'', $db);
+    $queryresult = mysqli_query($db, 'SELECT COUNT(*) FROM ipblocks WHERE ipb_address=\'' . mysqli_real_escape_string($db, $ip) . '\'');
 	if (!$queryresult) die('Error executing query');
-	$resarray = mysql_fetch_array($queryresult);
+	$resarray = mysqli_fetch_array($queryresult);
 	if (!$resarray || !$resarray[0])
 	{
 		$iphead = @file_get_contents("http://$ip/");

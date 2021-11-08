@@ -1,6 +1,6 @@
 <?php
 /*
-    Copyright © 2014 Petr Kadlec <mormegil@centrum.cz>
+    Copyright Â© 2014 Petr Kadlec <mormegil@centrum.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -140,15 +140,15 @@ function build_sql($namespace, $redirects, $random)
 function fetch_random($db, $namespace, $redirects)
 {
     $query = build_sql($namespace, $redirects, wfRandom());
-    $queryresult = mysql_query($query, $db);
+    $queryresult = mysqli_query($db, $query);
     if (!$queryresult) return null;
-    $row = mysql_fetch_row($queryresult);
+    $row = mysqli_fetch_row($queryresult);
     if ($row) return $row;
 
     $query = build_sql($namespace, $redirects, '0');
-    $queryresult = mysql_query($query, $db);
+    $queryresult = mysqli_query($db, $query);
     if (!$queryresult) return null;
-    $row = mysql_fetch_row($queryresult);
+    $row = mysqli_fetch_row($queryresult);
     return $row;
 }
 

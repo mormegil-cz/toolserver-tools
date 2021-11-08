@@ -68,17 +68,17 @@ function execute($catname, $project, $subcats)
 	{
 		$query .= 'where cl0';
 	}
-	$query .= ".cl_to='" . mysql_real_escape_string($catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to like 'http://toolserver.org/~geohack/%') limit 1000";
+	$query .= ".cl_to='" . mysqli_real_escape_string($db, $catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to like 'http://toolserver.org/~geohack/%') limit 1000";
 
-    $queryresult = mysql_query($query, $db);
+    $queryresult = mysqli_query($db, $query);
     if (!$queryresult)
     {
-        echo '<p class="error">Error executing query: ' . htmlspecialchars(mysql_error()) . '</p>';
+        echo '<p class="error">Error executing query: ' . htmlspecialchars(mysqli_error($db)) . '</p>';
         return;
     }
 
 	$count = 0;
-	while ($row = mysql_fetch_array($queryresult))
+	while ($row = mysqli_fetch_array($queryresult))
 	{
 		$article = $row[0];
 

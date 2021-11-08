@@ -69,7 +69,7 @@ function process_years_quick($basetitle)
   $pattern = str_replace(' ', '_', $basetitle);
   $pattern = str_replace('_', '\\_', $pattern);
   $pattern = str_replace('[yr]', '____', $pattern);
-  $queryresult = mysql_query('SELECT cl_to, COUNT(*) FROM categorylinks WHERE cl_to LIKE \'' . mysql_real_escape_string($pattern) . '\' GROUP BY cl_to', $db);
+  $queryresult = mysqli_query($db, 'SELECT cl_to, COUNT(*) FROM categorylinks WHERE cl_to LIKE \'' . mysqli_real_escape_string($db, $pattern) . '\' GROUP BY cl_to');
   if (!$queryresult)
   {
   	header('Status: 500');
@@ -80,7 +80,7 @@ function process_years_quick($basetitle)
 
   $result = array();
 
-  while ($row = mysql_fetch_row($queryresult))
+  while ($row = mysqli_fetch_row($queryresult))
   {
       $catname = $row[0];
       $count = $row[1];
@@ -88,6 +88,7 @@ function process_years_quick($basetitle)
       $year = substr($catname, $basetitlelen);
       $result[$year] = $count;
   }
+  mysqli_free_result($queryresult);
 
   return $result;
 }
@@ -103,17 +104,19 @@ function process_years_slow($basetitle)
   {
       $catname = str_replace(' ', '_', $basetitle);
       $catname = str_replace('[yr]', $year, $catname);
-      $queryresult = mysql_query('SELECT COUNT(*) FROM categorylinks WHERE cl_to=\'' . mysql_real_escape_string($catname) . '\'', $db);
+      $queryresult = mysqli_query($db, 'SELECT COUNT(*) FROM categorylinks WHERE cl_to=\'' . mysqli_real_escape_string($db, $catname) . '\'');
       if (!$queryresult)
       {
         header('Status: 500');
   	    die('Error executing query');
       }
 
-      if ($row = mysql_fetch_row($queryresult))
+      if ($row = mysqli_fetch_row($queryresult))
       {
         $result[$year] = $row[0];
       }
+
+      mysqli_free_result($queryresult);
   }
 
   return $result;

@@ -24,19 +24,22 @@ function connect_to_db($dbname)
 {
 	$dbname = str_replace('-', '_', $dbname);
 	$toolserver_mycnf = parse_ini_file(__DIR__ . '/../../replica.my.cnf');
-	$db = mysql_connect("$dbname.web.db.svc.eqiad.wmflabs", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
+	$db = mysqli_connect("$dbname.web.db.svc.wikimedia.cloud", $toolserver_mycnf['user'], $toolserver_mycnf['password'], "${dbname}_p");
 	if (!$db) return null;
-	if (!mysql_select_db("{$dbname}_p", $db)) return null;
 	unset($toolserver_mycnf);
 	return $db;
 }
 
 function scalar_query($db, $query)
 {
-	$result = mysql_query($query, $db);
+	$result = mysqli_query($db, $query);
 	if (!$result) return FALSE;
-	$row = mysql_fetch_row($result);
-	if (!$row) return FALSE;
+	$row = mysqli_fetch_row($result);
+	if (!$row) {
+		mysqli_free_result($result);
+		return FALSE;
+	}
+	mysqli_free_result($result);
 	return $row[0];
 }
 
@@ -117,12 +120,12 @@ if (!$db) {
 }
 
 if ($user) {
-	$query = "SELECT user_name, user_editcount, user_registration, user_id FROM user WHERE user_name='" . mysql_real_escape_string($user, $db) . "'";
+	$query = "SELECT user_name, user_editcount, user_registration, user_id FROM user WHERE user_name='" . mysqli_real_escape_string($db, $user) . "'";
 } else {
 	$query = 'SELECT user_name, user_editcount, user_registration FROM user WHERE user_editcount>=' . ($award_definitions[count($award_definitions) - 1][DEF_MINEDITS] . ' LIMIT 10000');
 }
 
-$queryresult = mysql_query($query, $db);
+$queryresult = mysqli_query($db, $query);
 if (!$queryresult) {
 	echo '<div class="error">Chyba při provádění dotazu do databáze!</div>';
 	echo '</body></html>';
@@ -133,7 +136,7 @@ $award_mapping = array();
 $user_row = null;
 $user_award = null;
 
-while (!!($row = mysql_fetch_assoc($queryresult))) {
+while (!!($row = mysqli_fetch_assoc($queryresult))) {
 	$username = $row['user_name'];
 	$editcount = $row['user_editcount'];
 	$registration = $row['user_registration'];
@@ -155,6 +158,7 @@ while (!!($row = mysql_fetch_assoc($queryresult))) {
 		}
 	}
 }
+mysqli_free_result($queryresult);
 
 if ($user) {
 	echo '<p><a href="' . htmlspecialchars($project_userpage_prefix[$project] . str_replace(' ', '_', $user), ENT_QUOTES) . '">' . htmlspecialchars($user) . '</a> ';
