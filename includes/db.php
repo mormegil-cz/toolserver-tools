@@ -34,36 +34,42 @@ function connect_to_db($dbname)
     {
         $dbname = str_replace('-', '_', $dbname);
         $toolserver_mycnf = parse_ini_file(__DIR__ . '/../../replica.my.cnf');
-        $db = mysql_connect("$dbname.web.db.svc.wikimedia.cloud", $toolserver_mycnf['user'], $toolserver_mycnf['password']);
+        $db = mysqli_connect("$dbname.web.db.svc.wikimedia.cloud", $toolserver_mycnf['user'], $toolserver_mycnf['password'], "{$dbname}_p");
         if (!$db) return null;
-        if (!mysql_select_db("{$dbname}_p", $db)) return null;
         unset($toolserver_mycnf);
         return $db;
     }
     else
     {
-        $db = mysql_connect('127.0.0.1', 'wikiuser', 'wikipass');
+        $db = mysqli_connect('127.0.0.1', 'wikiuser', 'wikipass', 'wikidb');
         if (!$db) return null;
-        if (!mysql_select_db('wikidb', $db)) return null;
         return $db;
     }
 }
 
 function get_pageid($db, $ns, $pagetitle)
 {
-    $query = mysql_query('SELECT page_id FROM page WHERE page_namespace = ' . intval($ns) . ' AND page_title=\'' . mysql_real_escape_string($pagetitle, $db) . '\'', $db);
+    $query = mysqli_query($db, 'SELECT page_id FROM page WHERE page_namespace = ' . intval($ns) . ' AND page_title=\'' . mysqli_real_escape_string($db, $pagetitle) . '\'');
     if (!$query) return null;
-    $result = mysql_fetch_row($query);
-    if (!$result) return null;
+    $result = mysqli_fetch_row($query);
+    if (!$result) {
+        mysqli_free_result($query);
+        return null;
+    }
+    mysqli_free_result($query);
     return $result[0];
 }
 
 function get_last_edit_timestamp($db)
 {
-    $query = mysql_query('SELECT rc_timestamp FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1', $db);
+    $query = mysqli_query($db, 'SELECT rc_timestamp FROM recentchanges ORDER BY rc_timestamp DESC LIMIT 1');
     if (!$query) return null;
-    $result = mysql_fetch_row($query);
-    if (!$result) return null;
+    $result = mysqli_fetch_row($query);
+    if (!$result) {
+        mysqli_free_result($query);
+        return null;
+    }
+    mysqli_free_result($query);
     return $result[0];
 }
 

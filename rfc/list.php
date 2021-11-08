@@ -70,7 +70,7 @@ if (!$rfcfrontpageid)
 	return;
 }
 
-$queryresult = mysql_query("SELECT page_title, page_id FROM page LEFT JOIN pagelinks ON pl_from=$rfcfrontpageid AND pl_namespace=4 AND pl_title=page_title WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND pl_from IS NULL", $db);
+$queryresult = mysqli_query($db, "SELECT page_title, page_id FROM page LEFT JOIN pagelinks ON pl_from=$rfcfrontpageid AND pl_namespace=4 AND pl_title=page_title WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND pl_from IS NULL");
 if (!$queryresult)
 {
 	header('Status: 500');
@@ -105,22 +105,24 @@ a img { border: none; }
 <?php
 
 $count = 0;
-while ($row = mysql_fetch_row($queryresult))
+while ($row = mysqli_fetch_row($queryresult))
 {
     $pagetitle = $row[0];
     $pageid = $row[1];
 
-    $oldestres = mysql_query("SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id WHERE rev_page=$pageid ORDER BY rev_id ASC LIMIT 1");
+    $oldestres = mysqli_query($db, "SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id WHERE rev_page=$pageid ORDER BY rev_id ASC LIMIT 1");
     if (!$oldestres) {
-        die(mysql_error());
+        die(mysqli_error($db));
     }
-    $oldestrev = mysql_fetch_row($oldestres);
+    $oldestrev = mysqli_fetch_row($oldestres);
+    mysqli_free_result($oldestres);
 
-    $newestres = mysql_query("SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id LEFT JOIN user_groups ON ug_user=actor_user AND ug_group='bot' WHERE rev_page=$pageid AND ug_user IS NULL ORDER BY rev_id DESC LIMIT 1");
+    $newestres = mysqli_query($db, "SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id LEFT JOIN user_groups ON ug_user=actor_user AND ug_group='bot' WHERE rev_page=$pageid AND ug_user IS NULL ORDER BY rev_id DESC LIMIT 1");
     if (!$newestres) {
-        die(mysql_error());
+        die(mysqli_error($db));
     }
-    $newestrev = mysql_fetch_row($newestres);
+    $newestrev = mysqli_fetch_row($newestres);
+    mysqli_free_result($newestres);
 
     $oldestauthor = $oldestrev[0];
     $oldesttimestamp = $oldestrev[1];

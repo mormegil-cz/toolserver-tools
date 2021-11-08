@@ -76,8 +76,8 @@ function execute($articlename, $homelang)
 
     echo "<!-- Loading interwiki -->\n";
     flush();
-    $query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($articlename, $db) . "' AND page_namespace = 0";
-    $queryresult = mysql_query($query, $db);
+    $query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysqli_real_escape_string($db, $articlename) . "' AND page_namespace = 0";
+    $queryresult = mysqli_query($db, $query);
     if (!$queryresult)
     {
         echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
@@ -85,10 +85,11 @@ function execute($articlename, $homelang)
     }
 
     $remotearticlenames = array();
-    while ($row = mysql_fetch_assoc($queryresult))
+    while ($row = mysqli_fetch_assoc($queryresult))
     {
         $remotearticlenames[$row['ll_lang']] = $row['ll_title'];
     }
+    mysqli_free_result($queryresult);
     if (!count($remotearticlenames)) {
         echo "<p class='error'>" . wfMsg('error-noiw') . "</p>";
         return;
@@ -96,7 +97,7 @@ function execute($articlename, $homelang)
 
     echo "<!-- Loading local categories -->\n";
     flush();
-    $queryresult = mysql_query("SELECT cl_to FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE page_title = '" . mysql_real_escape_string(title_to_db($articlename), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
+    $queryresult = mysqli_query($db, "SELECT cl_to FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE page_title = '" . mysqli_real_escape_string($db, title_to_db($articlename)) . "' AND page_namespace = 0 LIMIT 500");
     if (!$queryresult)
     {
         echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
@@ -104,10 +105,11 @@ function execute($articlename, $homelang)
     }
 
     $localcategories = array();
-    while ($row = mysql_fetch_array($queryresult))
+    while ($row = mysqli_fetch_array($queryresult))
     {
         $localcategories[$row[0]] = 1;
     }
+    mysqli_free_result($queryresult);
 
     echo "<!-- Starting interwiki processing -->\n";
     flush();
@@ -133,8 +135,8 @@ function execute($articlename, $homelang)
         category.page_id == ll_from
         + pp_propname=='hiddencat' AND category.page_id=pp_page
         */
-        $query = "SELECT ll_title, cl_to, pp_page FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysql_real_escape_string($homelang, $remotedb) . "' LEFT JOIN page_props ON catpage.page_id=pp_page AND pp_propname='hiddencat' WHERE artpage.page_title = '" . mysql_real_escape_string(title_to_db($remotearticlename), $remotedb) . "' AND artpage.page_namespace = 0 LIMIT 500";
-        $result = mysql_query($query, $remotedb);
+        $query = "SELECT ll_title, cl_to, pp_page FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysqli_real_escape_string($remotedb, $homelang) . "' LEFT JOIN page_props ON catpage.page_id=pp_page AND pp_propname='hiddencat' WHERE artpage.page_title = '" . mysqli_real_escape_string($remotedb, title_to_db($remotearticlename)) . "' AND artpage.page_namespace = 0 LIMIT 500";
+        $result = mysqli_query($remotedb, $query);
         if (!$result)
         {
             echo "<p class='error'>" . format_message('error-remotequery', $sourcewiki) . "</p>";
@@ -143,7 +145,7 @@ function execute($articlename, $homelang)
 
         // echo "<h3><a href='$remotearticleurl'>$sourcewiki:" . htmlspecialchars($remotearticlename) . "</a></h3>";
 
-        while ($row = mysql_fetch_array($result))
+        while ($row = mysqli_fetch_array($result))
         {
             $categoryfull = $row[0];
             $remotedbcategory = $row[1];
@@ -175,8 +177,9 @@ function execute($articlename, $homelang)
             $entry[SUGGESTION_REMOTES][$sourcewiki] = array($remotedbcategory, $ishidden);
             $suggestions[$categoryname] = $entry;
         }
+        mysqli_free_result($result);
 
-        mysql_close($remotedb);
+        mysqli_close($remotedb);
     }
 
     uasort($suggestions, "catsuggest_compare");

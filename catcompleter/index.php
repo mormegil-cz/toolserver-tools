@@ -68,8 +68,8 @@ function execute($catname, $homelang, $sourcewiki)
 
 	echo "<!-- Loading interwiki -->\n";
 	flush();
-	$query = "SELECT ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($catname, $db) . "' AND page_namespace = 14 AND ll_lang='" . mysql_real_escape_string($sourcewiki, $db) . "'";
-	$queryresult = mysql_query($query, $db);
+	$query = "SELECT ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysqli_real_escape_string($db, $catname) . "' AND page_namespace = 14 AND ll_lang='" . mysqli_real_escape_string($db, $sourcewiki) . "'";
+	$queryresult = mysqli_query($db, $query);
 	if (!$queryresult)
 	{
 		echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
@@ -77,7 +77,7 @@ function execute($catname, $homelang, $sourcewiki)
 	}
 
 	$remotecatname = null;
-	if ($row = mysql_fetch_assoc($queryresult))
+	if ($row = mysqli_fetch_assoc($queryresult))
 	{
 		$title = $row['ll_title'];
 		$colon = strpos($title, ':');
@@ -93,10 +93,11 @@ function execute($catname, $homelang, $sourcewiki)
 		echo "<p class='error'>" . wfMsg('error-missingiw') . "</p>";
 		return;
 	}
+	mysqli_free_result($queryresult);
 	
 	echo "<!-- Loading category -->\n";
 	flush();
-	$queryresult = mysql_query("SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysql_real_escape_string(title_to_db($catname), $db) . "' AND page_namespace = 0 LIMIT 500", $db);
+	$queryresult = mysqli_query($db, "SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysqli_real_escape_string($db, title_to_db($catname)) . "' AND page_namespace = 0 LIMIT 500");
 	if (!$queryresult)
 	{
 		echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
@@ -104,10 +105,11 @@ function execute($catname, $homelang, $sourcewiki)
 	}
 
 	$localarticles = array();
-	while ($row = mysql_fetch_array($queryresult))
+	while ($row = mysqli_fetch_array($queryresult))
 	{
 		$localarticles[$row[0]] = 1;
 	}
+	mysqli_free_result($queryresult);
 
 	echo "<!-- Starting interwiki processing -->\n";
 	flush();
@@ -117,8 +119,8 @@ function execute($catname, $homelang, $sourcewiki)
 	$remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
 	$remotecaturl = $remotewiki . "Category:" . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotecatname)), ENT_QUOTES);
 
-	$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysql_real_escape_string($homelang, $remotedb) .  "' INNER JOIN page ON page_id = ll_from WHERE cl_to = '" .  mysql_real_escape_string(title_to_db($remotecatname), $remotedb) . "' AND page_namespace=0 LIMIT 500";
-	$result = mysql_query($query, $remotedb);
+	$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysqli_real_escape_string($remotedb, $homelang) .  "' INNER JOIN page ON page_id = ll_from WHERE cl_to = '" .  mysqli_real_escape_string($remotedb, title_to_db($remotecatname)) . "' AND page_namespace=0 LIMIT 500";
+	$result = mysqli_query($remotedb, $query);
 	if (!$result)
 	{
 		echo "<p class='error'>" . wfMsg('error-remotequery') . "</p>";
@@ -131,7 +133,7 @@ function execute($catname, $homelang, $sourcewiki)
 		echo "<p class='warning'>" . wfMsg('warning-limit') . "</p>";
 	}
 
-	while ($row = mysql_fetch_array($result))
+	while ($row = mysqli_fetch_array($result))
 	{
 		++$remotearticles;
 		$article = $row[0];
@@ -189,8 +191,8 @@ function sourcewikichoice($catname, $homelang)
 	$catname = title_to_db($catname);
 	$caturl = str_replace('&', '%26', $catname);
 
-	$query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysql_real_escape_string($catname, $db) . "' AND page_namespace = 14";
-	$queryresult = mysql_query($query, $db);
+	$query = "SELECT ll_lang, ll_title FROM langlinks INNER JOIN page ON ll_from = page_id WHERE page_title = '" . mysqli_real_escape_string($db, $catname) . "' AND page_namespace = 14";
+	$queryresult = mysqli_query($db, $query);
 	if (!$queryresult)
 	{
 		echo "<p class='error'>" . wfMsg('error-iwquery') . "</p>";
@@ -198,7 +200,7 @@ function sourcewikichoice($catname, $homelang)
 	}
 
 	$first = true;
-	while ($row = mysql_fetch_assoc($queryresult))
+	while ($row = mysqli_fetch_assoc($queryresult))
 	{
 		$lang = $row['ll_lang'];
 		$title = $row['ll_title'];
