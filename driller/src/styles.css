@@ -1,0 +1,33 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 100vw;
+    height: 100vh;
+    overflow: clip;
+}
+
+#toolbar {
+    height: 100px;
+    width: 100vw;
+    padding: 10px;
+    background-color: #ccc;
+    border-bottom: 1px solid black;
+    display: flex;
+    flex-direction: row;
+}
+
+#baseToolbox, #selectionInfo, #selectionToolbox {
+    flex: 1;
+}
+
+#display {
+    width: 100vw;
+    height: calc(100vh - 101px);
+}
+
+textarea {
+    font-family: monospace;
+}

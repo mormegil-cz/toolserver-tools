@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Wikidata Driller</title>
+    <meta name="description" content="Visual interactive querying Wikidata" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="lib/vis-network.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+    <div class="container">
+        <div id="toolbar">
+            <div id="baseToolbox">
+                <h3>Wikidata Driller</h3>
+
+                <button id="btnAddQuery">+Query</button>
+                <button id="btnZoomFit">[Fit]</button>
+                <button id="btnZoomPlus">[+]</button>
+                <button id="btnZoomMinus">[-]</button>
+            </div>
+
+            <div id="selectionInfo">
+                <h4 id="selectionLabel"></h4>
+            </div>
+
+            <div id="selectionToolbox" style="visibility: hidden">
+                <button id="btnWqs">WQS</button>
+                <button id="btnLoadProps">Props?</button>
+            </div>
+        </div>
+        <div id="display"></div>
+    </div>
+    <dialog id="dlgQuery">
+        <h2>Create initial query node</h2>
+        <form method="dialog">
+            <div>
+                <label for="editQuerySparql">WHERE part of a SPARQL query:</label><br />
+                <textarea id="editQuerySparql" rows="20" cols="80"></textarea>
+            </div>
+            <div>
+                <button value="btnQueryCancel">Cancel</button>
+                <button id="btnQueryConfirm" value="default">Confirm</button>
+            </div>
+        </form>
+    </dialog>
+    <script src="lib/vis-network.min.js"></script>
+    <script src="bundle.js" async defer></script>
+</body>
+
+</html>
