@@ -12,6 +12,7 @@
     "build": "webpack --mode production"
   },
   "devDependencies": {
+    "@types/toastify-js": "^1.11.0",
     "@types/vis": "^4.21.23",
     "copy-webpack-plugin": "^10.2.4",
     "ts-loader": "^9.2.8",
@@ -21,6 +22,7 @@
     "webpack-dev-server": "^4.8.1"
   },
   "dependencies": {
+    "toastify-js": "^1.11.2",
     "vis-data": "^7.1.4",
     "vis-network": "^9.1.2"
   }

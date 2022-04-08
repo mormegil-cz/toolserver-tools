@@ -5,6 +5,7 @@
     "compilerOptions": {
         "noImplicitAny": true,
         "target": "es6",
+        "moduleResolution": "node",
         "lib": ["ES5", "ES6", "DOM"],
         "sourceMap": true
     }

@@ -15,6 +15,9 @@ module.exports = {
     resolve: {
         extensions: ['.ts', '.js'],
     },
+    externals: {
+        'vis-network/standalone': 'vis',
+    },
     output: {
         filename: 'bundle.js',
         path: path.resolve(__dirname, 'dist'),
@@ -31,6 +34,9 @@ module.exports = {
                     context: 'src/',
                 },
                 {
+                    from: 'assets/*'
+                },
+                {
                     from: 'vis-network.min.css*',
                     to: 'lib/',
                     context: 'node_modules/vis-network/styles/',
@@ -40,6 +46,12 @@ module.exports = {
                     to: 'lib/',
                     context: 'node_modules/vis-network/standalone/umd/',
                 },
+                // TODO: Replace with CSS bundling+minimization
+                {
+                    from: 'toastify.css',
+                    to: 'lib/',
+                    context: 'node_modules/toastify-js/src/'
+                }
             ],
         }),
     ],
