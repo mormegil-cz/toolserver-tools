@@ -4,7 +4,7 @@ import * as vis from 'vis-network/standalone';
 const $: (elementId: string) => HTMLElement | null = document.getElementById.bind(document);
 
 const MAX_DRILL_VALUES = 10;
-const RE_SPARQL_PATH: RegExp = /!?\^?P[1-9][0-9]*[*+?]?([|/]!?\^?P[1-9][0-9]*[*+?]?)*/;
+const RE_SPARQL_PATH: RegExp = /!?\^?[a-z]*:(P[1-9][0-9]*|[A-Za-z]+)[*+?]?([|/]!?\^?[a-z]*:(P[1-9][0-9]*|[A-Za-z]+)[*+?]?)*/;
 const WQS_SPARQL_API_ENDPOINT = 'https://query.wikidata.org/sparql?format=json&query=';
 
 interface QueryableNode {
@@ -14,13 +14,27 @@ interface QueryableNode {
 abstract class GraphNode implements vis.Node {
     private static currentId: number = 0;
 
+    private _caption: string;
+
     public readonly id: number;
+    public label: string;
 
     protected constructor(
-        public label: string,
+        caption: string,
         public shape: string,
+        public readonly count?: number,
     ) {
         this.id = GraphNode.currentId++;
+        this.caption = caption;
+    }
+
+    public get caption() {
+        return this._caption;
+    }
+
+    public set caption(value: string) {
+        this._caption = value;
+        this.label = this.count ? (`${value}\n${this.count}`) : value;
     }
 
     public abstract canQuery(): this is QueryableNode;
@@ -51,6 +65,14 @@ class DrillDownPropertyNode extends GraphNode {
 }
 
 abstract class ItemSet extends GraphNode implements QueryableNode {
+    protected constructor(
+        property: string,
+        shape: string,
+        count: number,
+    ) {
+        super(property, shape, count);
+    }
+
     public abstract computeQuery(): string;
 
     public override canQuery(): boolean {
@@ -62,8 +84,9 @@ class QueryItemSet extends ItemSet {
     constructor(
         label: string,
         public readonly query: string,
+        count: number,
     ) {
-        super(label, 'box');
+        super(label, 'box', count);
     }
 
     public override computeQuery(): string {
@@ -118,6 +141,10 @@ function toastError(msg: string) {
     showToast(msg, 'error');
 }
 
+function setVisible($element: HTMLElement, visible: boolean) {
+    $element.style.visibility = visible ? 'visible' : 'hidden';
+}
+
 const nodes = new vis.DataSet<GraphNode>([]);
 const edges = new vis.DataSet<vis.Edge>([]);
 
@@ -129,17 +156,26 @@ function init() {
     // any because of old typings, not yet released: https://github.com/microsoft/TypeScript-DOM-lib-generator/pull/1258
     const $dlgQuery: any = $('dlgQuery') as HTMLDialogElement;
     const $btnDeleteNode = $('btnDeleteNode') as HTMLButtonElement;
+    const $btnWqs = $('btnWqs') as HTMLButtonElement;
+    const $btnDrillCustomProp = $('btnDrillCustomProp') as HTMLButtonElement;
 
     $('selectionLabel').addEventListener('click', editNodeLabel);
     $('btnAddQuery').addEventListener('click', showInitialQueryDialog);
     $('btnDeleteNode').addEventListener('click', deleteNode);
-    $('btnWqs').addEventListener('click', openNodeInWqs);
-    $('btnDrillCustomProp').addEventListener('click', drillCustomProp);
+    $btnWqs.addEventListener('click', openNodeInWqs);
+    $btnDrillCustomProp.addEventListener('click', drillCustomProp);
 
     $dlgQuery.addEventListener('close', addQueryNode);
 
-    const options = {};
-    const data = {
+    const options: vis.Options = {
+        nodes: {
+            scaling: {
+                min: 1,
+                max: 10
+            }
+        }
+    };
+    const data: vis.Data = {
         nodes: nodes,
         edges: edges
     };
@@ -157,7 +193,6 @@ function init() {
         nodes.add(node);
         network.focus(node.id);
         network.fit();
-        updateSelection();
     }
 
     function addEdge(from: GraphNode, to: GraphNode) {
@@ -196,6 +231,8 @@ function init() {
     }
 
     function addQueryNode() {
+        if (!$dlgQuery.returnValue) return;
+
         const query = $editQuerySparql.value;
 
         runQuery(
@@ -208,11 +245,13 @@ function init() {
                 }
 
                 const itemCount = queryResults[0].driller_count.value;
-                const node = new QueryItemSet('Query ' + (nodes.length + 1) + '\n' + itemCount, query);
+                const node = new QueryItemSet('Query ' + (nodes.length + 1), query, itemCount);
                 const nodeOptions = node as vis.NodeOptions;
                 // nodeOptions.physics = false;
-                // nodeOptions.value = 1 + Math.log10(itemCount);
+                nodeOptions.value = 1 + Math.log10(itemCount);
                 addNode(node);
+                network.selectNodes([node.id]);
+                updateSelection();
             },
             error => {
                 toastError('WQS request failed');
@@ -224,18 +263,15 @@ function init() {
         const node = getSelectedNode();
         if (!node?.canQuery()) return;
 
-        let prop = prompt('Property: ', 'P31');
+        const prop = prompt('Property: ', 'wdt:P31');
         if (!prop) return;
-        prop = prop.toUpperCase();
         if (!RE_SPARQL_PATH.test(prop)) {
             toastWarning('Invalid property path syntax');
             return;
         }
 
-        const sparqlPropPath = prop.replace(/P/g, 'wdt:P');
-
         runQuery(
-            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ${sparqlPropPath} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`,
+            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ${prop} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`,
             queryResults => {
                 let resultCount = queryResults.length;
                 if (!resultCount) {
@@ -248,7 +284,7 @@ function init() {
                     resultCount = MAX_DRILL_VALUES;
                 }
 
-                const drillPropertyNode = new DrillDownPropertyNode(prop);
+                const drillPropertyNode = new DrillDownPropertyNode(prop.replace(/(wdt|wikibase):/g, ''));
                 addNode(drillPropertyNode);
                 addEdge(node, drillPropertyNode);
 
@@ -263,9 +299,9 @@ function init() {
                     const valueLabel = formatValue(type, value);
                     const valueSparql = expressValueInSparql(type, value);
 
-                    const valueNode = new QueryItemSet(valueLabel + '\n' + count, `{ { ${node.computeQuery()} } ?item ${sparqlPropPath} ${valueSparql} }`);
+                    const valueNode = new QueryItemSet(valueLabel, `{ { ${node.computeQuery()} } ?item ${prop} ${valueSparql} }`, count);
                     const nodeOptions = valueNode as vis.NodeOptions;
-                    // nodeOptions.value = 1 + Math.log10(count);
+                    nodeOptions.value = 1 + Math.log10(count);
 
                     addNode(valueNode);
                     addEdge(drillPropertyNode, valueNode);
@@ -273,6 +309,8 @@ function init() {
 
                 network.focus(drillPropertyNode.id);
                 network.fit();
+                network.selectNodes([drillPropertyNode.id]);
+                updateSelection();
             },
             error => {
                 toastError('WQS request failed');
@@ -298,30 +336,37 @@ function init() {
     function editNodeLabel() {
         const selectedNode = getSelectedNode();
         if (!selectedNode) return;
-        const editedCaption = prompt('Node caption:', selectedNode.label);
+        const editedCaption = prompt('Node caption:', selectedNode.caption);
         if (editedCaption) {
-            selectedNode.label = editedCaption;
-            $selectionLabel.innerText = editedCaption;
-            nodes.update(selectedNode);
+            nodes.remove(selectedNode);
+            selectedNode.caption = editedCaption;
+            $selectionLabel.innerText = selectedNode.label;
+            nodes.add(selectedNode);
         }
     }
 
     function updateSelection() {
         const selectedNode = getSelectedNode();
+        let canQuery: boolean;
         if (selectedNode) {
             $selectionLabel.innerText = selectedNode.label;
             $selectionToolbox.style.visibility = 'visible';
+            canQuery = selectedNode.canQuery();
         } else {
             $selectionLabel.innerText = '';
             $selectionToolbox.style.visibility = 'hidden';
+            canQuery = false;
         }
+
+        setVisible($btnWqs, canQuery);
+        setVisible($btnDrillCustomProp, canQuery);
     }
 
     function openNodeInWqs() {
         const selectedNode = getSelectedNode();
         if (!selectedNode || !selectedNode.canQuery()) return;
 
-        window.open('https://query.wikidata.org/#' + encodeURIComponent('SELECT ?item WHERE {\n\t' + selectedNode.computeQuery().replace(/\\n/g, '\n\t') + '\n}'))
+        window.open('https://query.wikidata.org/#' + encodeURIComponent('SELECT ?item ?itemLabel WHERE {\n\t' + selectedNode.computeQuery().replace(/\\n/g, '\n\t') + '\n\tSERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }\n}'))
     }
 
     function runQuery(sparql: string, resultCallback: (result: any[]) => void, errorCallback: (error: string) => void) {
