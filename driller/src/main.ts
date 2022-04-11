@@ -1,6 +1,5 @@
 import * as Toastify from 'toastify-js';
 import * as vis from 'vis-network/standalone';
-import * as moment from 'moment';
 
 const $: (elementId: string) => HTMLElement | null = document.getElementById.bind(document);
 
@@ -13,11 +12,15 @@ interface QueryableNode {
 }
 
 abstract class GraphNode implements vis.Node {
+    private static currentId: number = 0;
+
+    public readonly id: number;
+
     protected constructor(
-        public readonly id: number,
         public label: string,
         public shape: string,
     ) {
+        this.id = GraphNode.currentId++;
     }
 
     public abstract canQuery(): this is QueryableNode;
@@ -25,10 +28,9 @@ abstract class GraphNode implements vis.Node {
 
 class DummyNode extends GraphNode {
     public constructor(
-        id: number,
         label: string,
     ) {
-        super(id, label, 'ellipse');
+        super(label, 'ellipse');
     }
 
     public override canQuery(): boolean {
@@ -38,10 +40,9 @@ class DummyNode extends GraphNode {
 
 class DrillDownPropertyNode extends GraphNode {
     public constructor(
-        id: number,
         property: string,
     ) {
-        super(id, property, 'circle');
+        super(property, 'circle');
     }
 
     public override canQuery(): boolean {
@@ -59,11 +60,10 @@ abstract class ItemSet extends GraphNode implements QueryableNode {
 
 class QueryItemSet extends ItemSet {
     constructor(
-        id: number,
         label: string,
         public readonly query: string,
     ) {
-        super(id, label, 'box');
+        super(label, 'box');
     }
 
     public override computeQuery(): string {
@@ -71,13 +71,18 @@ class QueryItemSet extends ItemSet {
     }
 }
 
+function padNumber(num: number, digits: number): string {
+    return num.toFixed(0).padStart(digits, '0');
+}
+
 function formatValue(type: string, value: string): string {
-    switch(type) {
+    switch (type) {
         case 'uri':
             return value.startsWith('http://www.wikidata.org/entity/') ? value.substring('http://www.wikidata.org/entity/'.length) : value;
 
         case 'http://www.w3.org/2001/XMLSchema#dateTime':
-            return moment(value).format('Y-MM-DD');
+            const date = new Date(value);
+            return `${date.getUTCFullYear()}-${padNumber(date.getUTCMonth() + 1, 2)}-${padNumber(date.getUTCDate(), 2)}`;
 
         default:
             return value;
@@ -85,13 +90,13 @@ function formatValue(type: string, value: string): string {
 }
 
 function expressValueInSparql(type: string, value: string): string {
-    switch(type) {
+    switch (type) {
         case 'uri':
             return value.startsWith('http://www.wikidata.org/entity/') ? 'wd:' + value.substring('http://www.wikidata.org/entity/'.length) : `<${value}>`;
 
         case 'http://www.w3.org/2001/XMLSchema#dateTime':
             return `"${value}"^^xsd:dateTime`;
-    
+
         default:
             const jsoned = JSON.stringify(value);
             return `'${jsoned.substring(1, jsoned.length - 2).replace(/'/g, "\\'")}'`;
@@ -123,9 +128,11 @@ function init() {
     const $editQuerySparql = $('editQuerySparql') as HTMLTextAreaElement;
     // any because of old typings, not yet released: https://github.com/microsoft/TypeScript-DOM-lib-generator/pull/1258
     const $dlgQuery: any = $('dlgQuery') as HTMLDialogElement;
+    const $btnDeleteNode = $('btnDeleteNode') as HTMLButtonElement;
 
     $('selectionLabel').addEventListener('click', editNodeLabel);
     $('btnAddQuery').addEventListener('click', showInitialQueryDialog);
+    $('btnDeleteNode').addEventListener('click', deleteNode);
     $('btnWqs').addEventListener('click', openNodeInWqs);
     $('btnDrillCustomProp').addEventListener('click', drillCustomProp);
 
@@ -144,29 +151,73 @@ function init() {
     $('btnZoomPlus').addEventListener('click', () => changeZoom(1.4142));
     $('btnZoomMinus').addEventListener('click', () => changeZoom(0.7071));
 
-    addNode(new QueryItemSet(0, 'Czech Monuments', '?item wdt:P4075 []'));
+    // addNode(new QueryItemSet('Czech Monuments', '?item wdt:P4075 []'));
 
     function addNode(node: GraphNode) {
         nodes.add(node);
         network.focus(node.id);
         network.fit();
+        updateSelection();
     }
 
     function addEdge(from: GraphNode, to: GraphNode) {
-        edges.add({ id: edges.length, from: from.id, to: to.id });
+        edges.add({ id: edges.length, from: from.id, to: to.id, arrows: 'to' });
+    }
+
+    let nodeBeingDeleted: GraphNode | null = null;
+    let nodeDeletionTimeout: number | null = null;
+
+    function deleteNode() {
+        const node = getSelectedNode();
+        if (!node) return;
+
+        if (nodeDeletionTimeout) {
+            clearTimeout(nodeDeletionTimeout);
+            nodeDeletionTimeout = null;
+        }
+
+        if (nodeBeingDeleted === node) {
+            nodes.remove(node.id);
+            $btnDeleteNode.innerText = 'Del!';
+            updateSelection();
+        } else {
+            nodeBeingDeleted = node;
+            $btnDeleteNode.innerText = 'Sure?';
+            nodeDeletionTimeout = window.setTimeout(() => {
+                nodeBeingDeleted = null;
+                $btnDeleteNode.innerText = 'Del!';
+            }, 2000);
+        }
     }
 
     function showInitialQueryDialog() {
-        $editQuerySparql.value = 'VALUES ?item { wdt:Q42 }';
+        $editQuerySparql.value = 'VALUES ?item { wd:Q42 }';
         $dlgQuery.showModal();
     }
 
     function addQueryNode() {
-        const nodeId = nodes.length;
-        const node = new QueryItemSet(nodeId, 'Query ' + (nodeId + 1), $editQuerySparql.value);
-        const nodeOptions = node as vis.NodeOptions;
-        nodeOptions.mass = 2;
-        addNode(node);
+        const query = $editQuerySparql.value;
+
+        runQuery(
+            `SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`,
+            queryResults => {
+                let resultCount = queryResults.length;
+                if (resultCount != 1) {
+                    toastError('Unexpected result from WQS query');
+                    return;
+                }
+
+                const itemCount = queryResults[0].driller_count.value;
+                const node = new QueryItemSet('Query ' + (nodes.length + 1) + '\n' + itemCount, query);
+                const nodeOptions = node as vis.NodeOptions;
+                // nodeOptions.physics = false;
+                // nodeOptions.value = 1 + Math.log10(itemCount);
+                addNode(node);
+            },
+            error => {
+                toastError('WQS request failed');
+            }
+        );
     }
 
     function drillCustomProp() {
@@ -197,7 +248,7 @@ function init() {
                     resultCount = MAX_DRILL_VALUES;
                 }
 
-                const drillPropertyNode = new DrillDownPropertyNode(nodes.length, prop);
+                const drillPropertyNode = new DrillDownPropertyNode(prop);
                 addNode(drillPropertyNode);
                 addEdge(node, drillPropertyNode);
 
@@ -212,10 +263,9 @@ function init() {
                     const valueLabel = formatValue(type, value);
                     const valueSparql = expressValueInSparql(type, value);
 
-                    const valueNode = new QueryItemSet(nodes.length, valueLabel + '\n' + count, `{ { ${node.computeQuery()} } ?item ${sparqlPropPath} ${valueSparql} }`);
+                    const valueNode = new QueryItemSet(valueLabel + '\n' + count, `{ { ${node.computeQuery()} } ?item ${sparqlPropPath} ${valueSparql} }`);
                     const nodeOptions = valueNode as vis.NodeOptions;
-                    nodeOptions.value = count;
-                    nodeOptions.mass = 2;
+                    // nodeOptions.value = 1 + Math.log10(count);
 
                     addNode(valueNode);
                     addEdge(drillPropertyNode, valueNode);
