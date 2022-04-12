@@ -226,6 +226,8 @@ function init() {
     // any because of old typings, not yet released: https://github.com/microsoft/TypeScript-DOM-lib-generator/pull/1258
     const $dlgQuery: any = $('dlgQuery') as HTMLDialogElement;
     const $dlgDrillProp: any = $('dlgDrillProp') as HTMLDialogElement;
+    const $btnUnion = $('btnUnion') as HTMLButtonElement;
+    const $btnIntersect = $('btnIntersect') as HTMLButtonElement;
     const $btnDeleteNode = $('btnDeleteNode') as HTMLButtonElement;
     const $btnWqs = $('btnWqs') as HTMLButtonElement;
     const $btnLoadProps = $('btnLoadProps') as HTMLButtonElement;
@@ -233,6 +235,8 @@ function init() {
     const $btnDrillCustomProp = $('btnDrillCustomProp') as HTMLButtonElement;
 
     $('selectionLabel').addEventListener('click', editNodeLabel);
+    $btnUnion.addEventListener('click', addUnionNode);
+    $btnIntersect.addEventListener('click', addIntersectNode);
     $('btnAddQuery').addEventListener('click', showInitialQueryDialog);
     $('btnDeleteNode').addEventListener('click', deleteNode);
     $btnWqs.addEventListener('click', openNodeInWqs);
@@ -244,6 +248,9 @@ function init() {
     $dlgDrillProp.addEventListener('close', drillProp);
 
     const options: vis.Options = {
+        interaction: {
+            multiselect: true,
+        },
         nodes: {
             scaling: {
                 min: 1,
@@ -251,7 +258,7 @@ function init() {
                 label: {
                     enabled: true,
                     min: 10,
-                    max: 50
+                    max: 50,
                 }
             }
         }
@@ -306,6 +313,45 @@ function init() {
         }
     }
 
+    function getAllSelectedQueryableNodes(): (GraphNode & QueryableNode)[] {
+        return network
+            .getSelectedNodes()
+            .map(id => nodes.get(id))
+            .filter((node): node is GraphNode & QueryableNode => node.canQuery());
+    }
+
+    function computeCompoundQuery(nodes: (GraphNode & QueryableNode)[], operator: string): string {
+        const allQueries: string[] = [];
+        for (const node of nodes) {
+            allQueries.push(node.computeQuery());
+        }
+        return allQueries.join(operator);
+    }
+
+    function addEdgesToCompoundQueryNode(fromNodes: GraphNode[], toNode: GraphNode) {
+        if (!toNode) return;
+
+        for (const node of fromNodes) {
+            addEdge(node, toNode);
+        }
+    }
+
+    function addUnionNode() {
+        const selectedNodes = getAllSelectedQueryableNodes();
+        if (selectedNodes.length <= 1) return;
+
+        addQueryItemSetNode('union', '{ ' + computeCompoundQuery(selectedNodes, ' } UNION { ') + ' }')
+            .then(node => addEdgesToCompoundQueryNode(selectedNodes, node));
+    }
+
+    function addIntersectNode() {
+        const selectedNodes = getAllSelectedQueryableNodes();
+        if (selectedNodes.length <= 1) return;
+
+        addQueryItemSetNode('intersect', '{ ' + computeCompoundQuery(selectedNodes, ' } { ') + ' }')
+            .then(node => addEdgesToCompoundQueryNode(selectedNodes, node));
+    }
+
     function showInitialQueryDialog() {
         $editQuerySparql.value = 'VALUES ?item { wd:Q42 }';
         $dlgQuery.showModal();
@@ -328,12 +374,8 @@ function init() {
         $dlgDrillProp.showModal();
     }
 
-    function addQueryNode() {
-        if (!$dlgQuery.returnValue) return;
-
-        const query = $editQuerySparql.value;
-
-        runQuery(`SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`)
+    function addQueryItemSetNode(caption: string, query: string): Promise<QueryItemSet | null> {
+        return runQuery(`SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`)
             .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (resultCount != 1) {
@@ -341,18 +383,31 @@ function init() {
                     return;
                 }
 
-                const itemCount = queryResults[0].driller_count.value;
-                const node = new QueryItemSet('Query ' + (nodes.length + 1), query, itemCount);
+                const itemCount = +queryResults[0].driller_count.value;
+                if (itemCount === 0) {
+                    toastWarning("No such item");
+                    return null;
+                }
+                const node = new QueryItemSet(caption, query, itemCount);
                 const nodeOptions = node as vis.NodeOptions;
                 // nodeOptions.physics = false;
                 nodeOptions.mass = nodeOptions.value = 1 + Math.log10(itemCount);
                 addNode(node);
                 network.selectNodes([node.id]);
                 updateSelection();
+
+                return node;
             })
             .catch(_error => {
                 toastError('WQS request failed');
+                return null;
             });
+    }
+
+    function addQueryNode() {
+        if (!$dlgQuery.returnValue) return;
+
+        addQueryItemSetNode(`Query ${nodes.length + 1}`, $editQuerySparql.value);
     }
 
     function loadItemSetProps() {
@@ -370,7 +425,7 @@ function init() {
                 if (!resultCount) {
                     // strange indeed!
                     toastWarning('No properties found');
-                    return;
+                    return Promise.resolve();
                 }
 
                 let propertiesToResolve = [];
@@ -388,6 +443,8 @@ function init() {
                 return propertiesToResolve.length ? resolveLabels(propertiesToResolve) : Promise.resolve();
             })
             .then(() => {
+                if (!availableProperties.length) return;
+
                 const resultCount = availableProperties.length;
                 for (let i = 0; i < resultCount; ++i) {
                     const prop = availableProperties[i];
@@ -507,7 +564,7 @@ function init() {
 
     function getSelectedNode(): (GraphNode | null) {
         const selectedNodeIds = network.getSelectedNodes();
-        return selectedNodeIds.length ? nodes.get(selectedNodeIds[0]) : null;
+        return selectedNodeIds.length === 1 ? nodes.get(selectedNodeIds[0]) : null;
     }
 
     function editNodeLabel() {
@@ -523,7 +580,11 @@ function init() {
     }
 
     function updateSelection() {
-        const selectedNode = getSelectedNode();
+        const selectedNodeIds = network.getSelectedNodes()
+        const selectedNode = selectedNodeIds.length === 1 ? nodes.get(selectedNodeIds[0]) : null;
+
+        const multiselectAllCanQuery = selectedNodeIds.length > 1 && selectedNodeIds.map(id => nodes.get(id)).filter(node => !node || !node.canQuery()).length === 0;
+
         let canQuery: boolean;
         let loadedProperties: boolean;
         if (selectedNode) {
@@ -537,6 +598,9 @@ function init() {
             canQuery = false;
             loadedProperties = false;
         }
+
+        setVisible($btnUnion, multiselectAllCanQuery, 'inline');
+        setVisible($btnIntersect, multiselectAllCanQuery, 'inline');
 
         setVisible($btnWqs, canQuery, 'inline');
         setVisible($btnLoadProps, canQuery && !loadedProperties, 'inline');
@@ -621,6 +685,7 @@ function init() {
         }
     }
 
+    updateSelection();
     spinnerOff();
 }
 
