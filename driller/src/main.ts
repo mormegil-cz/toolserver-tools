@@ -3,8 +3,13 @@ import * as vis from 'vis-network/standalone';
 
 const $: (elementId: string) => HTMLElement | null = document.getElementById.bind(document);
 
+// TODO: configurable language
+const LANGUAGES = ['en', 'cs'];
+
 const MAX_DRILL_VALUES = 10;
+const WBGETENTITIES_BATCH_SIZE = 50;
 const RE_SPARQL_PATH: RegExp = /!?\^?[a-z]*:(P[1-9][0-9]*|[A-Za-z]+)[*+?]?([|/]!?\^?[a-z]*:(P[1-9][0-9]*|[A-Za-z]+)[*+?]?)*/;
+const WD_API_ENDPOINT = 'https://www.wikidata.org/w/api.php';
 const WQS_SPARQL_API_ENDPOINT = 'https://query.wikidata.org/sparql?format=json&query=';
 const QID_URI_PREFIX = 'http://www.wikidata.org/entity/';
 const QID_URI_PREFIX_LENGTH = QID_URI_PREFIX.length;
@@ -12,6 +17,8 @@ const PROP_URI_PREFIX = 'http://www.wikidata.org/prop/';
 const PROP_URI_PREFIX_LENGTH = PROP_URI_PREFIX.length;
 
 class PropertyUsage {
+    public label: string;
+
     public constructor(
         public readonly property: string,
         public readonly count: number
@@ -121,10 +128,46 @@ function uriToProp(uri: string): string {
     return uri.substring(PROP_URI_PREFIX_LENGTH);
 }
 
+function uriToEntityId(uri: string): string {
+    if (uri.startsWith(QID_URI_PREFIX)) {
+        return uriToQid(uri);
+    } else if (uri.startsWith(PROP_URI_PREFIX)) {
+        return uriToProp(uri);
+    } else {
+        throw new Error('Unsupported concept URI ' + uri);
+    }
+}
+
+function uriToEntityIdIfAvailable(uri: string): string {
+    if (uri.startsWith(QID_URI_PREFIX)) {
+        return uriToQid(uri);
+    } else if (uri.startsWith(PROP_URI_PREFIX)) {
+        return uriToProp(uri);
+    } else {
+        return uri;
+    }
+}
+
+let labelsForEntities: Record<string, string> = {};
+function getLabelForEntityId(entityId: string): string | null {
+    return labelsForEntities[entityId] ?? null;
+}
+
+function getLocalizedLabel(labels: Record<string, any>, languages: string[]): string | null {
+    for (const language of languages) {
+        const value = labels[language];
+        if (value && value.value) {
+            return value.value;
+        }
+    }
+    return null;
+}
+
 function formatValue(type: string, value: string): string {
     switch (type) {
         case 'uri':
-            return value.startsWith(QID_URI_PREFIX) ? uriToQid(value) : value;
+            const entityId = uriToEntityIdIfAvailable(value);
+            return entityId ? (getLabelForEntityId(entityId) ?? entityId) : value;
 
         case 'http://www.w3.org/2001/XMLSchema#dateTime':
             const date = new Date(value);
@@ -138,7 +181,7 @@ function formatValue(type: string, value: string): string {
 function expressValueInSparql(type: string, value: string): string {
     switch (type) {
         case 'uri':
-            return value.startsWith(QID_URI_PREFIX) ? 'wd:' + value.substring(QID_URI_PREFIX_LENGTH) : `<${value}>`;
+            return value.startsWith(QID_URI_PREFIX) ? 'wd:' + uriToQid(value) : `<${value}>`;
 
         case 'http://www.w3.org/2001/XMLSchema#dateTime':
             return `"${value}"^^xsd:dateTime`;
@@ -278,7 +321,7 @@ function init() {
             let prop = props[i];
             const option = document.createElement('option') as HTMLOptionElement;
             option.value = prop.property;
-            option.text = `${prop.property} (${prop.count})`;
+            option.text = `${prop.property} ${prop.label} (${prop.count})`;
             $boxDrillPropProperty.add(option);
         }
 
@@ -290,9 +333,8 @@ function init() {
 
         const query = $editQuerySparql.value;
 
-        runQuery(
-            `SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`,
-            queryResults => {
+        runQuery(`SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`)
+            .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (resultCount != 1) {
                     toastError('Unexpected result from WQS query');
@@ -307,21 +349,23 @@ function init() {
                 addNode(node);
                 network.selectNodes([node.id]);
                 updateSelection();
-            },
-            error => {
+            })
+            .catch(_error => {
                 toastError('WQS request failed');
-            }
-        );
+            });
     }
 
     function loadItemSetProps() {
         const node = getSelectedNode();
         if (!node?.canQuery()) return;
 
+        let availableProperties: PropertyUsage[] = [];
+
         runQuery(
             // TODO: p: or wdt:?
-            `SELECT ?driller_prop ?driller_count WHERE { { SELECT ?driller_prop (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ?driller_prop []. } GROUP BY ?driller_prop\n}FILTER(STRSTARTS(STR(?driller_prop), "http://www.wikidata.org/prop/P")) } ORDER BY DESC (?driller_count)`,
-            queryResults => {
+            `SELECT ?driller_prop ?driller_count WHERE { { SELECT ?driller_prop (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ?driller_prop []. } GROUP BY ?driller_prop\n}FILTER(STRSTARTS(STR(?driller_prop), "http://www.wikidata.org/prop/P")) } ORDER BY DESC (?driller_count)`
+        )
+            .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (!resultCount) {
                     // strange indeed!
@@ -329,23 +373,34 @@ function init() {
                     return;
                 }
 
-                let availableProperties: PropertyUsage[] = [];
-
+                let propertiesToResolve = [];
                 for (let i = 0; i < resultCount; ++i) {
-                    const property: string = queryResults[i].driller_prop.value;
+                    const propertyUri: string = queryResults[i].driller_prop.value;
                     const count: number = +queryResults[i].driller_count.value;
 
-                    availableProperties.push(new PropertyUsage(uriToProp(property), count));
+                    const propId = uriToProp(propertyUri);
+                    availableProperties.push(new PropertyUsage(propId, count));
+                    if (!labelsForEntities[propId]) {
+                        propertiesToResolve.push(PROP_URI_PREFIX + propId);
+                    }
+                }
+
+                return propertiesToResolve.length ? resolveLabels(propertiesToResolve) : Promise.resolve();
+            })
+            .then(() => {
+                const resultCount = availableProperties.length;
+                for (let i = 0; i < resultCount; ++i) {
+                    const prop = availableProperties[i];
+                    prop.label = getLabelForEntityId(prop.property);
                 }
 
                 node.availableProperties = availableProperties;
                 updateSelection();
                 toastInfo(`${resultCount} properties loaded`);
-            },
-            error => {
+            })
+            .catch(_error => {
                 toastError('WQS request failed');
-            }
-        );
+            });
     }
 
     function drillProp() {
@@ -359,7 +414,7 @@ function init() {
         const prop = selectedOption.value;
 
         // TODO: wdt: or p:/ps:?
-        runDrillProp(node, `p:${prop}/ps:${prop}`, prop);
+        runDrillProp(node, `p:${prop}/ps:${prop}`, getLabelForEntityId(prop));
     }
 
     function drillCustomProp() {
@@ -378,8 +433,8 @@ function init() {
 
     function runDrillProp(node: GraphNode & QueryableNode, prop: string, caption: string) {
         runQuery(
-            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ${prop} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`,
-            queryResults => {
+            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ${prop} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`)
+            .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (!resultCount) {
                     toastWarning('No such claim');
@@ -391,11 +446,27 @@ function init() {
                     resultCount = MAX_DRILL_VALUES;
                 }
 
+                const valueType: string = queryResults[0].driller_value.type;
+
+                let urisToResolve: string[] = [];
+                if (valueType === 'uri') {
+                    for (let i = 0; i < resultCount; ++i) {
+                        urisToResolve.push(queryResults[i].driller_value.value);
+                    }
+
+                    return resolveLabels(urisToResolve)
+                        .then(_resolvedLabels => ({ resultCount: resultCount, queryResults: queryResults }));
+                } else {
+                    return { resultCount: resultCount, queryResults: queryResults };
+                }
+            })
+            .then(({ resultCount, queryResults }: { resultCount: number, queryResults: any[] }) => {
                 const drillPropertyNode = new DrillDownPropertyNode(caption);
                 addNode(drillPropertyNode);
                 addEdge(node, drillPropertyNode);
 
                 const valueType: string = queryResults[0].driller_value.type;
+
                 const dataType: string = queryResults[0].driller_value.datatype;
                 const type: string = valueType === 'literal' ? dataType : valueType;
 
@@ -418,11 +489,10 @@ function init() {
                 network.fit();
                 network.selectNodes([drillPropertyNode.id]);
                 updateSelection();
-            },
-            error => {
+            })
+            .catch(_error => {
                 toastError('WQS request failed');
-            }
-        );
+            });
     }
 
     function changeZoom(frac: number) {
@@ -478,27 +548,60 @@ function init() {
         const selectedNode = getSelectedNode();
         if (!selectedNode || !selectedNode.canQuery()) return;
 
-        window.open('https://query.wikidata.org/#' + encodeURIComponent('SELECT ?item ?itemLabel WHERE {\n\t' + selectedNode.computeQuery().replace(/\\n/g, '\n\t') + '\n\tSERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }\n}'))
+        window.open('https://query.wikidata.org/#' + encodeURIComponent(`SELECT ?item ?itemLabel WHERE {\n\t${selectedNode.computeQuery().replace(/\\n/g, '\n\t')}\n\tSERVICE wikibase:label { bd:serviceParam wikibase:language "${LANGUAGES.join(',')}". }\n}`))
     }
 
-    function runQuery(sparql: string, resultCallback: (result: any[]) => void, errorCallback: (error: string) => void) {
+    function resolveLabels(uris: string[]): Promise<void> {
         spinnerOn();
 
-        fetch(WQS_SPARQL_API_ENDPOINT + encodeURIComponent(sparql))
-            .then((response) => {
+        const entityIds = uris.map(uriToEntityIdIfAvailable).filter(id => id && !getLabelForEntityId(id));
+
+        const entityCount = entityIds.length;
+        let result = Promise.resolve();
+        for (let batchFrom = 0; batchFrom < entityCount; batchFrom += WBGETENTITIES_BATCH_SIZE) {
+            let batch = entityIds.slice(batchFrom, Math.min(batchFrom + WBGETENTITIES_BATCH_SIZE, entityCount));
+            result = result.then(() =>
+                fetch(`${WD_API_ENDPOINT}?action=wbgetentities&format=json&origin=*&ids=${batch.join("%7C")}&props=labels&languages=${LANGUAGES.join('%7C')}`)
+                    .then(response => {
+                        if (response.status !== 200) {
+                            return response.text()
+                                .then(errText => {
+                                    console.error('Failed executing API request', batch, response, errText);
+                                    throw errText;
+                                });
+                        }
+
+                        return response.json();
+                    })
+                    .then((data: any) => {
+                        const entities = data.entities;
+                        for (const entityId in entities) {
+                            const entity = entities[entityId];
+                            labelsForEntities[entityId] = getLocalizedLabel(entity.labels, LANGUAGES) ?? entityId;
+                        }
+                    })
+            );
+        }
+        return result.finally(spinnerOff);
+    }
+
+    function runQuery(sparql: string): Promise<any[]> {
+        spinnerOn();
+
+        return fetch(WQS_SPARQL_API_ENDPOINT + encodeURIComponent(sparql))
+            .then(response => {
                 if (response.status !== 200) {
-                    return response.text().then(errText => {
-                        console.error('Failed executing SPARQL query', sparql, response, errText);
-                        spinnerOff();
-                        errorCallback(errText);
-                    });
+                    return response.text()
+                        .then(errText => {
+                            console.error('Failed executing SPARQL query', sparql, response, errText);
+                            throw errText;
+                        });
                 }
 
-                return response.json().then(result => {
-                    spinnerOff();
-                    resultCallback(result.results.bindings);
-                });
-            });
+                return response.json();
+            })
+            .then(result => result.results.bindings)
+            .finally(spinnerOff);
     }
 
     let spinCount = 1;
