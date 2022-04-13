@@ -234,6 +234,7 @@ function init() {
     const $dlgDrillProp: any = $('dlgDrillProp') as HTMLDialogElement;
     const $btnUnion = $('btnUnion') as HTMLButtonElement;
     const $btnIntersect = $('btnIntersect') as HTMLButtonElement;
+    const $btnMinus = $('btnMinus') as HTMLButtonElement;
     const $btnDeleteNode = $('btnDeleteNode') as HTMLButtonElement;
     const $btnWqs = $('btnWqs') as HTMLButtonElement;
     const $btnDrillProp = $('btnDrillProp') as HTMLButtonElement;
@@ -242,6 +243,7 @@ function init() {
     $('selectionLabel').addEventListener('click', editNodeLabel);
     $btnUnion.addEventListener('click', addUnionNode);
     $btnIntersect.addEventListener('click', addIntersectNode);
+    $btnMinus.addEventListener('click', addMinusNode);
     $('btnAddQuery').addEventListener('click', showInitialQueryDialog);
     $('btnDeleteNode').addEventListener('click', deleteNode);
     $btnWqs.addEventListener('click', openNodeInWqs);
@@ -354,6 +356,15 @@ function init() {
 
         addQueryItemSetNode('intersect', '{ ' + computeCompoundQuery(selectedNodes, ' } { ') + ' }')
             .then(node => addEdgesToCompoundQueryNode(selectedNodes, node));
+    }
+
+    function addMinusNode() {
+        const selectedNodes = getAllSelectedQueryableNodes();
+        if (selectedNodes.length <= 1) return;
+
+        addQueryItemSetNode('minus', '{ ' + computeCompoundQuery(selectedNodes, ' } MINUS { ') + ' }')
+            .then(node => addEdgesToCompoundQueryNode(selectedNodes, node));
+        // TODO: Maybe highlight the positive incoming edge from the negative?    
     }
 
     function showInitialQueryDialog() {
@@ -627,6 +638,7 @@ function init() {
 
         setVisible($btnUnion, multiselectAllCanQuery, 'inline');
         setVisible($btnIntersect, multiselectAllCanQuery, 'inline');
+        setVisible($btnMinus, multiselectAllCanQuery, 'inline');
 
         setVisible($btnWqs, canQuery, 'inline');
         setVisible($btnDrillProp, canQuery, 'inline');
