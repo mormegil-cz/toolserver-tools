@@ -16,6 +16,8 @@ const QID_URI_PREFIX_LENGTH = QID_URI_PREFIX.length;
 const PROP_URI_PREFIX = 'http://www.wikidata.org/prop/';
 const PROP_URI_PREFIX_LENGTH = PROP_URI_PREFIX.length;
 
+let querySerialNumber: number = 1;
+
 class PropertyUsage {
     public label: string;
 
@@ -225,6 +227,7 @@ function init() {
     const $selectionCount = $('selectionCount');
     const $selectionToolbox = $('selectionToolbox');
     const $editQuerySparql = $('editQuerySparql') as HTMLTextAreaElement;
+    const $editQueryCaption = $('editQueryCaption') as HTMLInputElement;
     const $boxDrillPropProperty = $('boxDrillPropProperty') as HTMLSelectElement;
     // any because of old typings, not yet released: https://github.com/microsoft/TypeScript-DOM-lib-generator/pull/1258
     const $dlgQuery: any = $('dlgQuery') as HTMLDialogElement;
@@ -354,6 +357,8 @@ function init() {
     }
 
     function showInitialQueryDialog() {
+        $editQueryCaption.value = '';
+        $editQueryCaption.placeholder = `Query ${querySerialNumber}`;
         $editQuerySparql.value = 'VALUES ?item { wd:Q42 }';
         $dlgQuery.showModal();
     }
@@ -383,6 +388,17 @@ function init() {
         $dlgDrillProp.showModal();
     }
 
+    function createQueryItemSetNode(caption: string, query: string, itemCount: number, singletonItem: string | null): QueryItemSet {
+        const node = new QueryItemSet(caption, query, itemCount);
+        if (itemCount === 1) {
+            node.url = singletonItem;
+            node.linkLabel = `1 (${uriToQid(singletonItem)})`;
+        }
+        const nodeOptions = node as vis.NodeOptions;
+        nodeOptions.mass = nodeOptions.value = 1 + Math.log10(itemCount);
+        return node;
+    }
+
     function addQueryItemSetNode(caption: string, query: string): Promise<QueryItemSet | null> {
         return runQuery(`SELECT (COUNT(?item) AS ?driller_count) (SAMPLE(?item) AS ?driller_item) WHERE { ${query} }`)
             .then(queryResults => {
@@ -397,18 +413,13 @@ function init() {
                     toastWarning("No such item");
                     return null;
                 }
-                const node = new QueryItemSet(caption, query, itemCount);
-                if (itemCount === 1) {
-                    const singletonItem = queryResults[0].driller_item.value;
-                    node.url = singletonItem;
-                    node.linkLabel = `1 (${uriToQid(singletonItem)})`;
-                }
-                const nodeOptions = node as vis.NodeOptions;
+                const node = createQueryItemSetNode(caption, query, itemCount, queryResults[0].driller_item.value);
                 // nodeOptions.physics = false;
-                nodeOptions.mass = nodeOptions.value = 1 + Math.log10(itemCount);
                 addNode(node);
                 network.selectNodes([node.id]);
                 updateSelection();
+
+                ++querySerialNumber;
 
                 return node;
             })
@@ -421,7 +432,7 @@ function init() {
     function addQueryNode() {
         if (!$dlgQuery.returnValue) return;
 
-        addQueryItemSetNode(`Query ${nodes.length + 1}`, $editQuerySparql.value);
+        addQueryItemSetNode($editQueryCaption.value || `Query ${querySerialNumber}`, $editQuerySparql.value);
     }
 
     function loadItemSetPropsAndShowDrillDialog(node: GraphNode & QueryableNode) {
@@ -503,7 +514,7 @@ function init() {
 
     function runDrillProp(node: GraphNode & QueryableNode, prop: string, caption: string) {
         runQuery(
-            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ${prop} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`)
+            `SELECT ?driller_value (COUNT(?item) AS ?driller_count) (SAMPLE(?item) AS ?driller_item) WHERE { { ${node.computeQuery()} } ?item ${prop} ?driller_value } GROUP BY ?driller_value\nORDER BY DESC(?driller_count)\nLIMIT ${MAX_DRILL_VALUES + 1}`)
             .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (!resultCount) {
@@ -543,13 +554,12 @@ function init() {
                 for (let i = 0; i < resultCount; ++i) {
                     const value: string = queryResults[i].driller_value.value;
                     const count: number = +queryResults[i].driller_count.value;
+                    const sampleItem: string = queryResults[i].driller_item.value;
 
                     const valueLabel = formatValue(type, value);
                     const valueSparql = expressValueInSparql(type, value);
 
-                    const valueNode = new QueryItemSet(valueLabel, `{ { ${node.computeQuery()} } ?item ${prop} ${valueSparql} }`, count);
-                    const nodeOptions = valueNode as vis.NodeOptions;
-                    nodeOptions.mass = nodeOptions.value = 1 + Math.log10(count);
+                    const valueNode = createQueryItemSetNode(valueLabel, `{ { ${node.computeQuery()} } ?item ${prop} ${valueSparql} }`, count, sampleItem);
 
                     addNode(valueNode);
                     addEdge(drillPropertyNode, valueNode);
@@ -604,7 +614,7 @@ function init() {
             if (selectedNode.url) {
                 $selectionCount.innerHTML = `<a href="${selectedNode.url}">${selectedNode.linkLabel}</a>`;
             } else {
-                $selectionCount.innerText = "" + (selectedNode.count ?? 0);
+                $selectionCount.innerText = selectedNode.count ? ("" + selectedNode.count) : "";
             }
             $selectionToolbox.style.visibility = 'visible';
             canQuery = selectedNode.canQuery();

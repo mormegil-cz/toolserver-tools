@@ -17,12 +17,12 @@
             <div id="baseToolbox">
                 <h3>Wikidata Driller</h3>
 
-                <button id="btnAddQuery">+Query</button>
-                <button id="btnUnion">+Union</button>
-                <button id="btnIntersect">+Intersect</button>
-                <button id="btnZoomFit">[Fit]</button>
-                <button id="btnZoomPlus">[+]</button>
-                <button id="btnZoomMinus">[-]</button>
+                <button id="btnAddQuery" title="Create a set for an initial query">+Query</button>
+                <button id="btnUnion" title="Create a union of the selected nodes">+Union</button>
+                <button id="btnIntersect" title="Create an intersection of the selected nodes">+Intersect</button>
+                <button id="btnZoomFit" title="Fit the network to screen">[Fit]</button>
+                <button id="btnZoomPlus" title="Zoom in">[+]</button>
+                <button id="btnZoomMinus" title="Zoom out">[-]</button>
             </div>
 
             <div id="selectionInfo">
@@ -31,10 +31,10 @@
             </div>
 
             <div id="selectionToolbox" style="visibility: hidden">
-                <button id="btnDeleteNode">Del!</button>
-                <button id="btnWqs">WQS</button>
-                <button id="btnDrillProp">Drill</button>
-                <button id="btnDrillCustomProp">+P#</button>
+                <button id="btnDeleteNode" title="Delete the selected node">Del!</button>
+                <button id="btnWqs" title="Open the corresponding query in the Wikidata Query Service">WQS</button>
+                <button id="btnDrillProp" title="Drill-down the set based on a property">Drill</button>
+                <button id="btnDrillCustomProp" title="Drill-down the set based on a custom property path">+P#</button>
             </div>
         </div>
         <div id="display"></div>
@@ -43,6 +43,8 @@
         <h2>Create initial query node</h2>
         <form method="dialog">
             <div>
+                <label for="editQueryCaption">Caption:</label>
+                <input id="editQueryCaption" /><br />
                 <label for="editQuerySparql">WHERE part of a SPARQL query:</label><br />
                 <textarea id="editQuerySparql" rows="20" cols="80" autofocus="autofocus" ></textarea>
             </div>
