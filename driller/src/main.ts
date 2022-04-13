@@ -38,6 +38,8 @@ abstract class GraphNode implements vis.Node {
 
     public readonly id: number;
     public label: string;
+    public url: string | null;
+    public linkLabel: string | null;
 
     protected constructor(
         caption: string,
@@ -220,6 +222,7 @@ const edges = new vis.DataSet<vis.Edge>([]);
 
 function init() {
     const $selectionLabel = $('selectionLabel');
+    const $selectionCount = $('selectionCount');
     const $selectionToolbox = $('selectionToolbox');
     const $editQuerySparql = $('editQuerySparql') as HTMLTextAreaElement;
     const $boxDrillPropProperty = $('boxDrillPropProperty') as HTMLSelectElement;
@@ -230,7 +233,6 @@ function init() {
     const $btnIntersect = $('btnIntersect') as HTMLButtonElement;
     const $btnDeleteNode = $('btnDeleteNode') as HTMLButtonElement;
     const $btnWqs = $('btnWqs') as HTMLButtonElement;
-    const $btnLoadProps = $('btnLoadProps') as HTMLButtonElement;
     const $btnDrillProp = $('btnDrillProp') as HTMLButtonElement;
     const $btnDrillCustomProp = $('btnDrillCustomProp') as HTMLButtonElement;
 
@@ -240,8 +242,7 @@ function init() {
     $('btnAddQuery').addEventListener('click', showInitialQueryDialog);
     $('btnDeleteNode').addEventListener('click', deleteNode);
     $btnWqs.addEventListener('click', openNodeInWqs);
-    $btnLoadProps.addEventListener('click', loadItemSetProps);
-    $btnDrillProp.addEventListener('click', showDrillPropDialog);
+    $btnDrillProp.addEventListener('click', onDrillPropClick);
     $btnDrillCustomProp.addEventListener('click', drillCustomProp);
 
     $dlgQuery.addEventListener('close', addQueryNode);
@@ -357,11 +358,19 @@ function init() {
         $dlgQuery.showModal();
     }
 
-    function showDrillPropDialog() {
+    function onDrillPropClick() {
         const node = getSelectedNode();
         if (!node?.canQuery()) return;
 
         const props = node.availableProperties;
+        if (props) {
+            showDrillPropDialog(props);
+        } else {
+            loadItemSetPropsAndShowDrillDialog(node);
+        }
+    }
+
+    function showDrillPropDialog(props: PropertyUsage[]) {
         $boxDrillPropProperty.innerHTML = '';
         for (let i = 0; i < props.length; ++i) {
             let prop = props[i];
@@ -375,7 +384,7 @@ function init() {
     }
 
     function addQueryItemSetNode(caption: string, query: string): Promise<QueryItemSet | null> {
-        return runQuery(`SELECT (COUNT(?item) AS ?driller_count) WHERE { ${query} }`)
+        return runQuery(`SELECT (COUNT(?item) AS ?driller_count) (SAMPLE(?item) AS ?driller_item) WHERE { ${query} }`)
             .then(queryResults => {
                 let resultCount = queryResults.length;
                 if (resultCount != 1) {
@@ -389,6 +398,11 @@ function init() {
                     return null;
                 }
                 const node = new QueryItemSet(caption, query, itemCount);
+                if (itemCount === 1) {
+                    const singletonItem = queryResults[0].driller_item.value;
+                    node.url = singletonItem;
+                    node.linkLabel = `1 (${uriToQid(singletonItem)})`;
+                }
                 const nodeOptions = node as vis.NodeOptions;
                 // nodeOptions.physics = false;
                 nodeOptions.mass = nodeOptions.value = 1 + Math.log10(itemCount);
@@ -410,15 +424,12 @@ function init() {
         addQueryItemSetNode(`Query ${nodes.length + 1}`, $editQuerySparql.value);
     }
 
-    function loadItemSetProps() {
-        const node = getSelectedNode();
-        if (!node?.canQuery()) return;
-
+    function loadItemSetPropsAndShowDrillDialog(node: GraphNode & QueryableNode) {
         let availableProperties: PropertyUsage[] = [];
 
         runQuery(
             // TODO: p: or wdt:?
-            `SELECT ?driller_prop ?driller_count WHERE { { SELECT ?driller_prop (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ?driller_prop []. } GROUP BY ?driller_prop\n}FILTER(STRSTARTS(STR(?driller_prop), "http://www.wikidata.org/prop/P")) } ORDER BY DESC (?driller_count)`
+            `SELECT ?driller_prop ?driller_count WHERE { { SELECT ?driller_prop (COUNT(?item) AS ?driller_count) WHERE { { ${node.computeQuery()} } ?item ?driller_prop []. } GROUP BY ?driller_prop\n}FILTER(STRSTARTS(STR(?driller_prop), "${PROP_URI_PREFIX}P")) } ORDER BY DESC (?driller_count)`
         )
             .then(queryResults => {
                 let resultCount = queryResults.length;
@@ -454,6 +465,8 @@ function init() {
                 node.availableProperties = availableProperties;
                 updateSelection();
                 toastInfo(`${resultCount} properties loaded`);
+
+                showDrillPropDialog(availableProperties);
             })
             .catch(_error => {
                 toastError('WQS request failed');
@@ -574,8 +587,8 @@ function init() {
         if (editedCaption) {
             nodes.remove(selectedNode);
             selectedNode.caption = editedCaption;
-            $selectionLabel.innerText = selectedNode.label;
             nodes.add(selectedNode);
+            updateSelection();
         }
     }
 
@@ -586,25 +599,27 @@ function init() {
         const multiselectAllCanQuery = selectedNodeIds.length > 1 && selectedNodeIds.map(id => nodes.get(id)).filter(node => !node || !node.canQuery()).length === 0;
 
         let canQuery: boolean;
-        let loadedProperties: boolean;
         if (selectedNode) {
-            $selectionLabel.innerText = selectedNode.label;
+            $selectionLabel.innerText = selectedNode.caption;
+            if (selectedNode.url) {
+                $selectionCount.innerHTML = `<a href="${selectedNode.url}">${selectedNode.linkLabel}</a>`;
+            } else {
+                $selectionCount.innerText = "" + (selectedNode.count ?? 0);
+            }
             $selectionToolbox.style.visibility = 'visible';
             canQuery = selectedNode.canQuery();
-            loadedProperties = selectedNode.canQuery() && !!selectedNode.availableProperties;
         } else {
             $selectionLabel.innerText = '';
+            $selectionCount.innerText = '';
             $selectionToolbox.style.visibility = 'hidden';
             canQuery = false;
-            loadedProperties = false;
         }
 
         setVisible($btnUnion, multiselectAllCanQuery, 'inline');
         setVisible($btnIntersect, multiselectAllCanQuery, 'inline');
 
         setVisible($btnWqs, canQuery, 'inline');
-        setVisible($btnLoadProps, canQuery && !loadedProperties, 'inline');
-        setVisible($btnDrillProp, canQuery && loadedProperties, 'inline');
+        setVisible($btnDrillProp, canQuery, 'inline');
         setVisible($btnDrillCustomProp, canQuery, 'inline');
     }
 
