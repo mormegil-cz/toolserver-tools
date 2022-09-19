@@ -1,0 +1,63 @@
+/*
+ Based on Neat CSS by Joel Dare <https://github.com/codazoda/neatcss>
+
+ Neat is distributed as open-source under the MIT license.
+*/
+:root {
+	color-scheme: dark light;
+	--light: #fff;
+	--dark: #404040;
+}
+
+* {
+	box-sizing: border-box;
+	color: var(--dark);
+}
+
+html {
+	border-width: 0;
+}
+
+html, button, input {
+	font-family: sans-serif;
+}
+
+body {
+	background-color: var(--light);
+	margin: 0;
+	padding: 20px;
+	line-height: 1.4em;
+}
+
+p {
+	margin-bottom: 10px;
+}
+
+img {
+	width: 100%;
+}
+
+pre {
+	overflow: auto;
+}
+
+@media only screen and (min-width: 600px) {
+	body {
+		margin-left: 60px;
+		margin-right: 60px;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	* {
+		color: var(--light);
+	}
+
+	html {
+		border-color: var(--light);
+	}
+
+	body {
+		background-color: var(--dark);
+	}
+}
