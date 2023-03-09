@@ -31,13 +31,23 @@
                     </li>
                 </ul>
                 <form class="d-flex" role="search">
-                    <button class="btn btn-outline-success" type="submit">Open item</button>
+                    <button class="btn btn-outline-success" type="submit" role="search">Load item</button>
                 </form>
             </div>
         </div>
     </nav>
 
-    <main class="container-fluid">
+    <div id="emptyScreen" class="container">
+        <div class="bg-light p-5 rounded-lg m-3">
+            <h1 class="display-4">Wikidata Blame</h1>
+            <p class="lead">This is a tool to display the history of a Wikidata entity in a structured form.</p>
+            <hr class="my-4">
+            <p>To begin, choose an item to load.</p>
+            <button type="button" class="btn btn-primary btn-lg" role="search">Load item</a>
+        </div>
+    </div>
+
+    <main class="container-fluid" id="mainContainer" style="display:none">
         <div class="accordion">
             <div class="accordion-item" id="sectionLabelling">
                 <h2 class="accordion-header" id="sectionHeadingLabelling">
@@ -46,97 +56,90 @@
                     </button>
                 </h2>
                 <div id="sectionBodyLabelling" class="accordion-collapse collapse" aria-labelledby="sectionHeadingLabelling">
-                    <div class="accordion-body">
+                    <div class="accordion-body" id="sectionContentLabelling">
 
 
                         <div class="accordion" id="accordionExample">
                             <div class="accordion-item">
-                              <h2 class="accordion-header" id="headingOne">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                                  cs (since 2010-03-15)
-                                </button>
-                              </h2>
-                              <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
-                                <div class="accordion-body">
+                                <h2 class="accordion-header" id="headingOne">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                        cs (since 2010-03-15)
+                                    </button>
+                                </h2>
+                                <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                                    <div class="accordion-body">
 
-                                    <table class="table">
-                                        <thead>
-                                            <tr><th scope="col">Timestamp</th><th scope="col">User</th><th scope="col">Operation</th><th scope="col">Comment</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
-                                                <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
-                                                <td><i class="bi-pencil-square"></i> <span class="text-muted">±0</span> <span class="fw-bold">m</span></td>
-                                                <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
-                                            </tr>
-                                            <tr>
-                                                <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
-                                                <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
-                                                <td><i class="bi-plus-square"></i> <span class="text-success">+398</span> <span class="fw-bold">m</span></td>
-                                                <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
-                                            </tr>
-                                            <tr>
-                                                <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
-                                                <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
-                                                <td><i class="bi-x-square"></i> <span class="text-danger">-2092</span> <span class="fw-bold">m</span></td>
-                                                <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col">Timestamp</th>
+                                                    <th scope="col">User</th>
+                                                    <th scope="col">Operation</th>
+                                                    <th scope="col">Comment</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
+                                                    <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
+                                                    <td><i class="bi-pencil-square"></i> <span class="text-muted">±0</span> <span class="fw-bold">m</span></td>
+                                                    <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
+                                                    <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
+                                                    <td><i class="bi-plus-square"></i> <span class="text-success">+398</span> <span class="fw-bold">m</span></td>
+                                                    <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><a href="https://www.wikidata.org/w/index.php?diff=prev&oldid=1847940364">2022-10-03 20:13:15</a></td>
+                                                    <td><a href="https://www.wikidata.org/wiki/User:Mormegil">Mormegil</a></td>
+                                                    <td><i class="bi-x-square"></i> <span class="text-danger">-2092</span> <span class="fw-bold">m</span></td>
+                                                    <td class="font-monospace">/* wbsetclaim-create:2||1 */ [[Property:P40]]: [[Q6111095]]</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
 
+                                    </div>
                                 </div>
-                              </div>
                             </div>
                             <div class="accordion-item">
-                              <h2 class="accordion-header" id="headingTwo">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                  en (since 2010-05-23)
-                                </button>
-                              </h2>
-                              <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
-                                <div class="accordion-body">
-                                  <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+                                <h2 class="accordion-header" id="headingTwo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                        en (since 2010-05-23)
+                                    </button>
+                                </h2>
+                                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+                                    <div class="accordion-body">
+                                        <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+                                    </div>
                                 </div>
-                              </div>
                             </div>
                             <div class="accordion-item">
-                              <h2 class="accordion-header" id="headingThree">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-                                  fr (2010-10-11 to 2015-01-30)
-                                </button>
-                              </h2>
-                              <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
-                                <div class="accordion-body">
-                                  <strong>This is the third item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+                                <h2 class="accordion-header" id="headingThree">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                        fr (2010-10-11 to 2015-01-30)
+                                    </button>
+                                </h2>
+                                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                                    <div class="accordion-body">
+                                        <strong>This is the third item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+                                    </div>
                                 </div>
-                              </div>
                             </div>
-                          </div>
+                        </div>
 
                     </div>
                 </div>
             </div>
-            <div class="accordion-item" id="sectionStatements">
-                <h2 class="accordion-header" id="sectionHeadingStatements">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyStatements" aria-expanded="false" aria-controls="sectionBodyStatements">
-                        Statements (14 active properties, 5 deleted)
+            <div class="accordion-item" id="sectionClaims">
+                <h2 class="accordion-header" id="sectionHeadingClaims">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyClaims" aria-expanded="false" aria-controls="sectionBodyClaims">
+                        Claims (14 active properties, 5 deleted)
                     </button>
                 </h2>
-                <div id="sectionBodyStatements" class="accordion-collapse collapse" aria-labelledby="sectionHeadingStatements">
-                    <div class="accordion-body">
-                        <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
-                    </div>
-                </div>
-            </div>
-            <div class="accordion-item" id="sectionIdentifiers">
-                <h2 class="accordion-header" id="sectionHeadingIdentifiers">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyIdentifiers" aria-expanded="false" aria-controls="sectionBodyIdentifiers">
-                        Identifiers (4 active properties)
-                    </button>
-                </h2>
-                <div id="sectionBodyIdentifiers" class="accordion-collapse collapse" aria-labelledby="sectionHeadingIdentifiers">
-                    <div class="accordion-body">
+                <div id="sectionBodyClaims" class="accordion-collapse collapse" aria-labelledby="sectionHeadingClaims">
+                    <div class="accordion-body" id="sectionContentClaims">
                         <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
                     </div>
                 </div>
@@ -148,7 +151,7 @@
                     </button>
                 </h2>
                 <div id="sectionBodySitelinks" class="accordion-collapse collapse" aria-labelledby="sectionHeadingSitelinks">
-                    <div class="accordion-body">
+                    <div class="accordion-body" id="sectionContentSitelinks">
                         <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
                     </div>
                 </div>
