@@ -12,7 +12,7 @@ module.exports = {
                 exclude: /node_modules/,
             },
             {
-                test: /\.(scss)$/,
+                test: /\.(s?css)$/,
                 use: [
                   {
                     loader: MiniCssExtractPlugin.loader
