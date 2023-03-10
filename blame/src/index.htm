@@ -37,6 +37,10 @@
         </div>
     </nav>
 
+    <div id="spinner" style="display:none">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+
     <div id="emptyScreen" class="container">
         <div class="bg-light p-5 rounded-lg m-3">
             <h1 class="display-4">Wikidata Blame</h1>
@@ -49,14 +53,14 @@
 
     <main class="container-fluid" id="mainContainer" style="display:none">
         <div class="accordion">
-            <div class="accordion-item" id="sectionLabelling">
-                <h2 class="accordion-header" id="sectionHeadingLabelling">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyLabelling" aria-expanded="false" aria-controls="sectionBodyLabelling">
-                        Labels, descriptions, and aliases (5 active languages, 3 deleted)
+            <div class="accordion-item" id="sectionLabels">
+                <h2 class="accordion-header" id="sectionHeadingLabels">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyLabels" aria-expanded="false" aria-controls="sectionBodyLabels">
+                        Labels (5 active languages, 3 deleted)
                     </button>
                 </h2>
-                <div id="sectionBodyLabelling" class="accordion-collapse collapse" aria-labelledby="sectionHeadingLabelling">
-                    <div class="accordion-body" id="sectionContentLabelling">
+                <div id="sectionBodyLabels" class="accordion-collapse collapse" aria-labelledby="sectionHeadingLabels">
+                    <div class="accordion-body" id="sectionContentLabels">
 
 
                         <div class="accordion" id="accordionExample">
@@ -129,6 +133,30 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionDescriptions">
+                <h2 class="accordion-header" id="sectionHeadingDescriptions">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyDescriptions" aria-expanded="false" aria-controls="sectionBodyDescriptions">
+                        Descriptions (14 active properties, 5 deleted)
+                    </button>
+                </h2>
+                <div id="sectionBodyDescriptions" class="accordion-collapse collapse" aria-labelledby="sectionHeadingDescriptions">
+                    <div class="accordion-body" id="sectionContentDescriptions">
+                        <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionAliases">
+                <h2 class="accordion-header" id="sectionHeadingAliases">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyAliases" aria-expanded="false" aria-controls="sectionBodyAliases">
+                        Aliases (14 active properties, 5 deleted)
+                    </button>
+                </h2>
+                <div id="sectionBodyAliases" class="accordion-collapse collapse" aria-labelledby="sectionHeadingAliases">
+                    <div class="accordion-body" id="sectionContentAliases">
+                        <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
                     </div>
                 </div>
             </div>
