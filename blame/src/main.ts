@@ -6,8 +6,6 @@ enum Ordering {
     chrono = "chrono"
 };
 
-// https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cflags%7Ccomment%7Cuser%7Cparsedcomment%7Ccontent%7Cuserid&rvslots=main&rvlimit=10&titles=Q732678
-
 let ordering = Ordering.chrono;
 let data: BlameData | null = null;
 
@@ -32,6 +30,13 @@ enum EditType {
     Deleted,
     FirstRevision,
 }
+
+const editTypeIcon = [
+    'plus-square',
+    'pencil-square',
+    'x-square',
+    'arrow-down-right-square'
+];
 
 class HistoryItem {
     constructor(public revision: RevisionMetadata, public editType: EditType, public sizeChange: number) {
@@ -176,9 +181,127 @@ function renderData() {
     renderSection('sectionContentSitelinks', data.parts.get(ItemPart.Sitelinks));
 }
 
+function $E(tag: string, properties: Record<string, string>, children: (HTMLElement | string)[]): HTMLElement {
+    const el = document.createElement(tag);
+    if (properties) {
+        for (let prop in properties) {
+            el.setAttribute(prop, properties[prop]);
+        }
+    }
+    el.append(...children);
+    return el;
+}
+
 function renderSection(containerId: string, entries: Map<string, HistoryItem[]>) {
     const $container = document.getElementById(containerId);
     $container.innerHTML = '';
+
+    // TODO: Sorting
+
+    for (let key of entries.keys()) {
+        const data = entries.get(key);
+        const id = `${containerId}-${key}`;
+        const idHeading = `${id}-heading`;
+        const idContent = `${id}-content`;
+        const timeInfo = determineTimeInfo(data);
+
+        const $historyRows: HTMLElement[] = [];
+
+        for (let historyItem of data) {
+            const revision = historyItem.revision;
+            $historyRows.push(
+                $E('tr', null, [
+                    $E('td', null, [
+                        $E('a', { href: `https://www.wikidata.org/w/index.php?diff=prev&oldid=${revision.revisionId}` }, [revision.timestamp])
+                    ]),
+                    $E('td', null, [
+                        $E('a', { href: makeUserLink(revision.userName, revision.anonymousUser) }, [revision.userName])
+                    ]),
+                    $E('td', null, describeEdit(historyItem)),
+                    $E('td', { class: 'font-monospace' }, [revision.comment]),
+                ])
+            );
+        }
+
+        $container.append(
+            $E('div', { class: 'accordion', id: id }, [
+                $E('div', { class: 'accordion-item' }, [
+                    $E('h2', { class: 'accordion-header', id: idHeading }, [
+                        $E('button', { class: 'accordion-button collapsed', type: 'button', 'data-bs-toggle': 'collapse', 'data-bs-target': `#${idContent}`, 'aria-expanded': 'false', 'aria-controls': idContent }, [
+                            `${key} (${timeInfo})`
+                        ])
+                    ]),
+                    $E('div', { class: 'accordion-collapse collapse', id: idContent, 'aria-labelledby': idHeading, 'data-bs-parent': `#${id}` }, [
+                        $E('div', { class: 'accordion-body' }, [
+                            $E('table', { class: 'table' }, [
+                                $E('thead', null, [
+                                    $E('tr', null, [
+                                        $E('th', { scope: 'col' }, ['Timestamp']),
+                                        $E('th', { scope: 'col' }, ['User']),
+                                        $E('th', { scope: 'col' }, ['Operation']),
+                                        $E('th', { scope: 'col' }, ['Comment']),
+                                    ])
+                                ]),
+                                $E('tbody', null, $historyRows)
+                            ])
+                        ])
+                    ])
+                ])
+            ])
+        );
+    }
+
+    // TODO: Summary caption
+}
+
+function makeUserLink(userName: string, anonymous: boolean): string {
+    return anonymous ? `https://www.wikidata.org/wiki/Special:Contributions/${userName}`
+        : `https://www.wikidata.org/wiki/User:${userName}`;
+}
+
+function describeEdit(item: HistoryItem): (HTMLElement | string)[] {
+    let diffSizeClass: string;
+    let diffSizeText: string;
+    if (item.sizeChange < 0) {
+        diffSizeClass = 'danger';
+        diffSizeText = '' + item.sizeChange;
+    } else if (item.sizeChange > 0) {
+        diffSizeClass = 'success';
+        diffSizeText = '+' + item.sizeChange;
+    } else {
+        diffSizeClass = 'muted';
+        diffSizeText = '±' + item.sizeChange;
+    }
+    let result = [
+        $E('i', { class: `bi-${editTypeIcon[item.editType]}` }, []),
+        ' ',
+        $E('span', { class: `text-${diffSizeClass}` }, [diffSizeText])
+    ];
+    if (item.revision.minorEdit) {
+        result.push(' ');
+        result.push($E('span', { class: 'fw-bold' }, ['m']));
+    }
+    return result;
+}
+
+function determineTimeInfo(items: HistoryItem[]): string {
+    switch (items.length) {
+        case 0:
+            // ?? should not happen
+            return '?';
+
+        case 1:
+            return items[0].revision.timestamp;
+
+        default:
+            const latestRevision = items[0];
+            const oldestRevision = items.at(-1);
+            if (latestRevision.editType === EditType.Deleted) {
+                return `${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
+            } else {
+                return `since ${oldestRevision.revision.timestamp}`;
+            }
+    }
 }
 
 async function executeApiCall(qid: string): Promise<MWAPIQueryResponse> {
@@ -226,10 +349,10 @@ function* parseApiResponse(response: MWAPIQueryResponse): Iterable<ItemState> {
 }
 
 function parseRevisionData(metadata: RevisionMetadata, revision: MWApiItemContent): ItemState {
-    let parts: Map<ItemPart, Map<string, string>> = new Map();
+    let parts = new Map<ItemPart, Map<string, string>>();
 
     for (let part of itemPartValues) {
-        let parsedPart: Map<string, string> = new Map();
+        let parsedPart = new Map<string, string>();
         let revisionPart = revision[part];
 
         for (let entryKey of Object.keys(revisionPart)) {
@@ -244,8 +367,18 @@ function parseRevisionData(metadata: RevisionMetadata, revision: MWApiItemConten
     return new ItemState(metadata, parts)
 }
 
+function getOrInsert<K, V>(map: Map<K, V>, key: K, ctor: { new(): V }): V {
+    let result = map.get(key);
+    if (result !== undefined) {
+        return result;
+    }
+    result = new ctor();
+    map.set(key, result);
+    return result;
+}
+
 function processRevisions(revisions: Iterable<ItemState>): BlameData {
-    let parts: Map<ItemPart, Map<string, HistoryItem[]>> = new Map();
+    let parts = new Map<ItemPart, Map<string, HistoryItem[]>>();
     let currentState: ItemState | undefined = undefined;
 
     for (let revision of revisions) {
@@ -255,11 +388,22 @@ function processRevisions(revisions: Iterable<ItemState>): BlameData {
         }
 
         for (let part of itemPartValues) {
-            let partMap = parts.get(part) ?? new Map();
-            appendHistory(partMap, compareState(currentState.parts.get(part), revision.parts.get(part), currentState.metadata));
+            appendHistory(
+                getOrInsert(parts, part, Map<string, HistoryItem[]>),
+                compareState(currentState.parts.get(part), revision.parts.get(part), currentState.metadata)
+            );
         }
 
         currentState = revision;
+    }
+
+    if (currentState !== undefined) {
+        for (let part of itemPartValues) {
+            appendHistory(
+                getOrInsert(parts, part, Map<string, HistoryItem[]>),
+                convertBaseItemState(currentState.metadata, currentState.parts.get(part))
+            );
+        }
     }
 
     return new BlameData(parts);
@@ -274,7 +418,7 @@ function appendHistory(history: Map<string, HistoryItem[]>, added: Map<string, H
 }
 
 function compareState(current: Map<string, string>, previous: Map<string, string>, currentRevision: RevisionMetadata): Map<string, HistoryItem> {
-    let result = new Map();
+    let result = new Map<string, HistoryItem>();
 
     let currentKeys = new Set(current.keys());
     let previousKeys = new Set(previous.keys());
@@ -287,18 +431,26 @@ function compareState(current: Map<string, string>, previous: Map<string, string
     }
 
     // changed
-    let changedKeys = new Set([...current.keys()].filter(k => previousKeys.has(k)));
+    let changedKeys = [...current.keys()].filter(k => previous.get(k) !== current.get(k));
     for (let changedKey of changedKeys) {
-        result.set(changedKey, new HistoryItem(currentRevision, EditType.Changed, current.get(changedKey).length - previous.get(changedKey).length));
+        result.set(changedKey, new HistoryItem(currentRevision, EditType.Changed, (current.get(changedKey) ?? '').length - (previous.get(changedKey) ?? '').length));
     }
 
     // removed in current
     let removedKeys = new Set(previousKeys);
-    currentKeys.forEach(k => previousKeys.delete(k));
+    currentKeys.forEach(k => removedKeys.delete(k));
     for (let removedKey of removedKeys) {
         result.set(removedKey, new HistoryItem(currentRevision, EditType.Deleted, -previous.get(removedKey).length));
     }
 
+    return result;
+}
+
+function convertBaseItemState(revision: RevisionMetadata, state: Map<string, string>): Map<string, HistoryItem> {
+    const result = new Map<string, HistoryItem>();
+    for (let propKey of state.keys()) {
+        result.set(propKey, new HistoryItem(revision, EditType.FirstRevision, state.get(propKey).length));
+    }
     return result;
 }
 
