@@ -178,11 +178,11 @@ function renderScreen() {
 }
 
 function renderData() {
-    renderSection('sectionContentLabels', data.parts.get(ItemPart.Labels));
-    renderSection('sectionContentDescriptions', data.parts.get(ItemPart.Descriptions));
-    renderSection('sectionContentAliases', data.parts.get(ItemPart.Aliases));
-    renderSection('sectionContentClaims', data.parts.get(ItemPart.Claims));
-    renderSection('sectionContentSitelinks', data.parts.get(ItemPart.Sitelinks));
+    renderSection('Labels', data.parts.get(ItemPart.Labels));
+    renderSection('Descriptions', data.parts.get(ItemPart.Descriptions));
+    renderSection('Aliases', data.parts.get(ItemPart.Aliases));
+    renderSection('Claims', data.parts.get(ItemPart.Claims));
+    renderSection('Sitelinks', data.parts.get(ItemPart.Sitelinks));
 }
 
 function $E(tag: string, properties: Record<string, string>, children: (HTMLElement | string)[]): HTMLElement {
@@ -196,21 +196,31 @@ function $E(tag: string, properties: Record<string, string>, children: (HTMLElem
     return el;
 }
 
-function renderSection(containerId: string, entries: Map<string, HistoryItem[]>) {
+function renderSection(sectionId: string, entries: Map<string, HistoryItem[]>) {
+    const containerId = 'sectionContent' + sectionId;
     const $container = document.getElementById(containerId);
     $container.innerHTML = '';
+    const $header = document.getElementById('sectionHeader' + sectionId);
 
     // Sorting
     const compareFunction = orderingFunctions[ordering];
     let entriesKeys = [...entries.keys()];
     entriesKeys.sort((k1, k2) => compareFunction(k1, entries.get(k1), k2, entries.get(k2)));
 
+    let activeEntries = 0;
+    let deletedEntries = 0;
     for (let key of entriesKeys) {
         const data = entries.get(key);
         const id = `${containerId}-${key}`;
         const idHeading = `${id}-heading`;
         const idContent = `${id}-content`;
         const timeInfo = determineTimeInfo(data);
+
+        if (data[0].editType === EditType.Deleted) {
+            ++deletedEntries;
+        } else {
+            ++activeEntries;
+        }
 
         const $historyRows: HTMLElement[] = [];
 
@@ -258,7 +268,19 @@ function renderSection(containerId: string, entries: Map<string, HistoryItem[]>)
         );
     }
 
-    // TODO: Summary caption
+    $header.innerText = makeSectionSummary(activeEntries, deletedEntries);
+}
+
+function makeSectionSummary(activeEntries: number, deletedEntries: number): string {
+    if (activeEntries > 0 && deletedEntries > 0) {
+        return `${activeEntries} active, ${deletedEntries} deleted`;
+    } else if (activeEntries > 0) {
+        return `${activeEntries} active`;
+    } else if (deletedEntries > 0) {
+        return `${deletedEntries} deleted`;
+    } else {
+        return `No data`;
+    }
 }
 
 function makeUserLink(userName: string, anonymous: boolean): string {
@@ -292,7 +314,7 @@ function describeEdit(item: HistoryItem): (HTMLElement | string)[] {
 }
 
 function compareHistoryItemsAlpha(aKey: string, _a: HistoryItem[], bKey: string, _b: HistoryItem[]): number {
-    return aKey.localeCompare(bKey);
+    return aKey.localeCompare(bKey, undefined, { numeric: true });
 }
 
 function compareHistoryItemsChrono(_aKey: string, a: HistoryItem[], _bKey: string, b: HistoryItem[]): number {
@@ -328,17 +350,17 @@ function determineTimeInfo(items: HistoryItem[]): string {
             const latestRevision = items[0];
             const oldestRevision = items.at(-1);
             if (latestRevision.editType === EditType.Deleted) {
-                return `${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
+                return `${items.length} edits; ${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
             } else {
                 switch (oldestRevision.editType) {
                     case EditType.Created:
-                        return `since ${oldestRevision.revision.timestamp}`;
+                        return `${items.length} edits; since ${oldestRevision.revision.timestamp}`;
 
                     case EditType.Deleted:
                     case EditType.Changed:
                     case EditType.FirstRevision:
                     default:
-                        return `existing at ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
+                        return `${items.length} edits; existing at ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
                 }
             }
     }
