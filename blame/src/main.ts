@@ -19,6 +19,10 @@ enum ItemPart {
 
 const itemPartValues = <ItemPart[]>Object.values(ItemPart);
 
+const orderingFunctions: Record<string, ((aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]) => number)> = {};
+orderingFunctions[Ordering.alpha] = compareHistoryItemsAlpha;
+orderingFunctions[Ordering.chrono] = compareHistoryItemsChrono;
+
 class BlameData {
     constructor(public parts: Map<ItemPart, Map<string, HistoryItem[]>>) {
     }
@@ -123,7 +127,7 @@ function hideSpinner() {
 function handleLoadClick() {
     showSpinner();
 
-    executeApiCall("Q732678")
+    executeApiCall("Q732678", 500)
         .then(showApiResponse)
         .catch(error => {
             console.error(error);
@@ -196,9 +200,12 @@ function renderSection(containerId: string, entries: Map<string, HistoryItem[]>)
     const $container = document.getElementById(containerId);
     $container.innerHTML = '';
 
-    // TODO: Sorting
+    // Sorting
+    const compareFunction = orderingFunctions[ordering];
+    let entriesKeys = [...entries.keys()];
+    entriesKeys.sort((k1, k2) => compareFunction(k1, entries.get(k1), k2, entries.get(k2)));
 
-    for (let key of entries.keys()) {
+    for (let key of entriesKeys) {
         const data = entries.get(key);
         const id = `${containerId}-${key}`;
         const idHeading = `${id}-heading`;
@@ -284,6 +291,18 @@ function describeEdit(item: HistoryItem): (HTMLElement | string)[] {
     return result;
 }
 
+function compareHistoryItemsAlpha(aKey: string, _a: HistoryItem[], bKey: string, _b: HistoryItem[]): number {
+    return aKey.localeCompare(bKey);
+}
+
+function compareHistoryItemsChrono(_aKey: string, a: HistoryItem[], _bKey: string, b: HistoryItem[]): number {
+    return -(getLatestTimestamp(a).localeCompare(getLatestTimestamp(b)));
+}
+
+function getLatestTimestamp(arr: HistoryItem[]): string {
+    return arr.length === 0 ? '' : arr[0].revision.timestamp;
+}
+
 function determineTimeInfo(items: HistoryItem[]): string {
     switch (items.length) {
         case 0:
@@ -291,7 +310,19 @@ function determineTimeInfo(items: HistoryItem[]): string {
             return '?';
 
         case 1:
-            return items[0].revision.timestamp;
+            const onlyRevision = items[0];
+            switch (onlyRevision.editType) {
+                case EditType.Deleted:
+                    return `until ${onlyRevision.revision.timestamp}`;
+
+                case EditType.Created:
+                    return `since ${onlyRevision.revision.timestamp}`;
+
+                case EditType.Changed:
+                case EditType.FirstRevision:
+                default:
+                    return `existing at ${onlyRevision.revision.timestamp}`;
+            }
 
         default:
             const latestRevision = items[0];
@@ -299,13 +330,22 @@ function determineTimeInfo(items: HistoryItem[]): string {
             if (latestRevision.editType === EditType.Deleted) {
                 return `${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
             } else {
-                return `since ${oldestRevision.revision.timestamp}`;
+                switch (oldestRevision.editType) {
+                    case EditType.Created:
+                        return `since ${oldestRevision.revision.timestamp}`;
+
+                    case EditType.Deleted:
+                    case EditType.Changed:
+                    case EditType.FirstRevision:
+                    default:
+                        return `existing at ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
+                }
             }
     }
 }
 
-async function executeApiCall(qid: string): Promise<MWAPIQueryResponse> {
-    const url = 'https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent%7Ccontentmodel%7Cparsedcomment%7Cflags&rvslots=main&rvlimit=20&titles=' + qid;
+async function executeApiCall(qid: string, revlimit: number): Promise<MWAPIQueryResponse> {
+    const url = `https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent%7Ccontentmodel%7Ccomment%7Cparsedcomment%7Cflags&rvslots=main&rvlimit=${revlimit}&titles=${qid}`;
     return fetch(url)
         .then(response => {
             if (response.status !== 200) {
@@ -431,7 +471,7 @@ function compareState(current: Map<string, string>, previous: Map<string, string
     }
 
     // changed
-    let changedKeys = [...current.keys()].filter(k => previous.get(k) !== current.get(k));
+    let changedKeys = [...current.keys()].filter(k => previous.has(k) && (previous.get(k) !== current.get(k)));
     for (let changedKey of changedKeys) {
         result.set(changedKey, new HistoryItem(currentRevision, EditType.Changed, (current.get(changedKey) ?? '').length - (previous.get(changedKey) ?? '').length));
     }
