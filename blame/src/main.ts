@@ -125,9 +125,40 @@ function hideSpinner() {
 }
 
 function handleLoadClick() {
+    const requestedEntity = window.prompt('Entity to load?', 'Q42');
+    if (requestedEntity === null) {
+        return;
+    }
+    // TODO: Support wikibase-property and wikibase-lexeme
+    /*
+    if (!/^[LPQlpq][1-9][0-9]*$/.test(requestedEntity)) {
+        reportError('Invalid/unsupported entity identifier');
+        return;
+    }
+    let id: string;
+    switch (requestedEntity[0].toUpperCase()) {
+        case 'P':
+            id = 'Property:' + requestedEntity;
+            break;
+
+        case 'L':
+            id = 'Lexeme:' + requestedEntity;
+            break;
+
+        case 'Q':
+            id = requestedEntity;
+            break;
+    }*/
+    if (!/^[Qq][1-9][0-9]*$/.test(requestedEntity)) {
+        reportError('Invalid/unsupported entity identifier');
+        return;
+    }
+
+    const id = requestedEntity;
+
     showSpinner();
 
-    executeApiCall("Q732678", 500)
+    executeApiCall(id, 50)
         .then(showApiResponse)
         .catch(error => {
             console.error(error);
