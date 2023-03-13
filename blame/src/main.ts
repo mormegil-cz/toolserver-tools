@@ -475,7 +475,7 @@ function determineTimeInfo(items: HistoryItem[]): string {
                 case EditType.Deleted:
                     // ? should not happen
                     return `until ${onlyRevision.revision.timestamp}`;
-    
+
                 case EditType.Changed:
                 default:
                     // ? should not happen
@@ -508,11 +508,12 @@ function parseRevisionData(metadata: RevisionMetadata, revision: MWApiItemConten
     for (let part of itemPartValues) {
         let parsedPart = new Map<string, string>();
         let revisionPart = revision[part];
-
-        for (let entryKey of Object.keys(revisionPart)) {
-            let entryData = revisionPart[entryKey];
-            let entryStr = JSON.stringify(entryData);
-            parsedPart.set(entryKey, entryStr);
+        if (typeof revisionPart === 'object') {
+            for (let entryKey of Object.keys(revisionPart)) {
+                let entryData = revisionPart[entryKey];
+                let entryStr = JSON.stringify(entryData);
+                parsedPart.set(entryKey, entryStr);
+            }
         }
 
         parts.set(part, parsedPart);
