@@ -17,6 +17,8 @@ enum ItemPart {
     Sitelinks = "sitelinks"
 }
 
+const BATCH_SIZE: number | 'max' = 'max';
+
 const itemPartValues = <ItemPart[]>Object.values(ItemPart);
 
 const orderingFunctions: Record<string, ((aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]) => number)> = {};
@@ -57,8 +59,27 @@ class RevisionMetadata {
     }
 }
 
+interface MWAPIQueryResultRevision {
+    revid: number;
+    parentid: number;
+    minor: boolean;
+    anon?: boolean;
+    user: string;
+    timestamp: string;
+    slots: {
+        main: {
+            contentmodel: string;
+            contentformat: string;
+            content: string;
+        }
+    };
+    comment: string;
+    parsedcomment: string;
+}
+
 interface MWAPIQueryResponse {
-    continue: {
+    batchcomplete?: boolean;
+    continue?: {
         rvcontinue: string;
         continue: string;
     };
@@ -68,23 +89,7 @@ interface MWAPIQueryResponse {
             pageid: number;
             ns: number;
             title: string;
-            revisions: {
-                revid: number;
-                parentid: number;
-                minor: boolean;
-                anon: boolean;
-                user: string;
-                timestamp: string;
-                slots: {
-                    main: {
-                        contentmodel: string;
-                        contentformat: string;
-                        content: string;
-                    }
-                };
-                comment: string;
-                parsedcomment: string;
-            }[];
+            revisions: MWAPIQueryResultRevision[];
         }[];
     };
 }
@@ -158,8 +163,14 @@ function handleLoadClick() {
 
     showSpinner();
 
-    executeApiCall(id, 50)
-        .then(showApiResponse)
+    processRevisions(
+        queryAndParseRevisions(id)
+    )
+        .then(parsedData => {
+            data = parsedData;
+            renderScreen();
+            hideSpinner();
+        })
         .catch(error => {
             console.error(error);
             reportError("Error loading/parsing item");
@@ -167,16 +178,109 @@ function handleLoadClick() {
         });
 }
 
-function showApiResponse(response: MWAPIQueryResponse) {
-    if (!checkApiResponse(response)) {
-        reportError("Unable to load item");
-        hideSpinner();
-        return;
+async function* queryAndParseRevisions(id: string): AsyncGenerator<ItemState, void, void> {
+    for await (let queryResult of executeApiQueries(id)) {
+        for (let itemState of parseApiResponse(queryResult)) {
+            yield itemState;
+        }
+    }
+}
+
+async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<BlameData> {
+    let parts = new Map<ItemPart, Map<string, HistoryItem[]>>();
+    let currentState: ItemState | undefined = undefined;
+
+    for await (let revision of revisions) {
+        if (currentState === undefined) {
+            currentState = revision;
+            continue;
+        }
+
+        for (let part of itemPartValues) {
+            appendHistory(
+                getOrInsert(parts, part, Map<string, HistoryItem[]>),
+                compareState(currentState.parts.get(part), revision.parts.get(part), currentState.metadata)
+            );
+        }
+
+        currentState = revision;
     }
 
-    data = processRevisions(parseApiResponse(response));
-    renderScreen();
-    hideSpinner();
+    if (currentState !== undefined) {
+        for (let part of itemPartValues) {
+            appendHistory(
+                getOrInsert(parts, part, Map<string, HistoryItem[]>),
+                convertBaseItemState(currentState.metadata, currentState.parts.get(part))
+            );
+        }
+    }
+
+    return new BlameData(parts);
+}
+
+async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultRevision[], void, void> {
+    let continueToken: string | null = null;
+    while (true) {
+        const response = await executeSingleApiCall(qid, BATCH_SIZE, continueToken);
+
+        if (!response?.query?.pages || response.query.pages.length != 1) {
+            reportError('Error fetching revisions');
+            console.debug(response);
+            return;
+        }
+
+        const pageData = response.query.pages[0];
+        if (pageData.missing || !pageData.pageid) {
+            reportError('Entity not found');
+            console.debug(response);
+            return;
+        }
+
+        const revisions = pageData.revisions;
+        yield revisions;
+        if (response.batchcomplete) {
+            break;
+        }
+
+        continueToken = response.continue.rvcontinue;
+    }
+}
+
+async function executeSingleApiCall(qid: string, revlimit: number | 'max', continueToken: string | null): Promise<MWAPIQueryResponse> {
+    let url = `https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent%7Ccontentmodel%7Ccomment%7Cparsedcomment%7Cflags&rvslots=main&rvlimit=${revlimit}&titles=${qid}`;
+    if (continueToken) {
+        url += '&rvcontinue=' + continueToken;
+    }
+    return fetch(url)
+        .then(response => {
+            if (response.status !== 200) {
+                return response.text()
+                    .then(errText => {
+                        console.error('Failed executing API request', response, errText);
+                        throw new Error(errText);
+                    });
+            }
+            return <Promise<MWAPIQueryResponse>>response.json();
+        })
+}
+
+function* parseApiResponse(revisions: MWAPIQueryResultRevision[]): Iterable<ItemState> {
+    for (let revisionData of revisions) {
+        const mainSlot = revisionData.slots.main;
+        if (mainSlot.contentformat !== 'application/json' || mainSlot.contentmodel !== 'wikibase-item') {
+            console.warn(`Unsupported content of revision ${revisionData.revid}: '${mainSlot.contentformat}', '${mainSlot.contentmodel}'`);
+            continue;
+        }
+        const metadata = new RevisionMetadata(revisionData.timestamp, revisionData.revid, revisionData.user, revisionData.anon ?? false, revisionData.comment, revisionData.parsedcomment, revisionData.minor);
+        let revisionContent: any;
+        try {
+            revisionContent = JSON.parse(mainSlot.content);
+        } catch (e) {
+            console.warn(`Error parsing revision ${revisionData.revid}`, e);
+            continue;
+        }
+        yield parseRevisionData(metadata, revisionContent);
+    }
 }
 
 function handleOrderingChange(this: HTMLElement) {
@@ -365,15 +469,16 @@ function determineTimeInfo(items: HistoryItem[]): string {
         case 1:
             const onlyRevision = items[0];
             switch (onlyRevision.editType) {
-                case EditType.Deleted:
-                    return `until ${onlyRevision.revision.timestamp}`;
-
                 case EditType.Created:
                     return `since ${onlyRevision.revision.timestamp}`;
 
+                case EditType.Deleted:
+                    // ? should not happen
+                    return `until ${onlyRevision.revision.timestamp}`;
+    
                 case EditType.Changed:
-                case EditType.FirstRevision:
                 default:
+                    // ? should not happen
                     return `existing at ${onlyRevision.revision.timestamp}`;
             }
 
@@ -381,63 +486,19 @@ function determineTimeInfo(items: HistoryItem[]): string {
             const latestRevision = items[0];
             const oldestRevision = items.at(-1);
             if (latestRevision.editType === EditType.Deleted) {
-                return `${items.length} edits; ${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
+                return `${items.length} versions; ${oldestRevision.revision.timestamp} – ${latestRevision.revision.timestamp}`;
             } else {
                 switch (oldestRevision.editType) {
                     case EditType.Created:
-                        return `${items.length} edits; since ${oldestRevision.revision.timestamp}`;
+                        return `${items.length} versions; since ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
 
                     case EditType.Deleted:
                     case EditType.Changed:
-                    case EditType.FirstRevision:
                     default:
-                        return `${items.length} edits; existing at ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
+                        // ?? should not happen!
+                        return `${items.length} versions; existing at ${oldestRevision.revision.timestamp}, edited ${latestRevision.revision.timestamp}`;
                 }
             }
-    }
-}
-
-async function executeApiCall(qid: string, revlimit: number): Promise<MWAPIQueryResponse> {
-    const url = `https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent%7Ccontentmodel%7Ccomment%7Cparsedcomment%7Cflags&rvslots=main&rvlimit=${revlimit}&titles=${qid}`;
-    return fetch(url)
-        .then(response => {
-            if (response.status !== 200) {
-                return response.text()
-                    .then(errText => {
-                        console.error('Failed executing API request', response, errText);
-                        throw new Error(errText);
-                    });
-            }
-            return <Promise<MWAPIQueryResponse>>response.json();
-        })
-}
-
-function checkApiResponse(response: MWAPIQueryResponse): boolean {
-    if (!response?.query?.pages || response.query.pages.length != 1) {
-        return false;
-    }
-    const pageData = response.query.pages[0];
-    return !pageData.missing && !!pageData.pageid;
-}
-
-function* parseApiResponse(response: MWAPIQueryResponse): Iterable<ItemState> {
-    const pageData = response.query.pages[0];
-
-    for (let revisionData of pageData.revisions) {
-        const mainSlot = revisionData.slots.main;
-        if (mainSlot.contentformat !== 'application/json' || mainSlot.contentmodel !== 'wikibase-item') {
-            console.warn(`Unsupported content of revision ${revisionData.revid}: '${mainSlot.contentformat}', '${mainSlot.contentmodel}'`);
-            continue;
-        }
-        const metadata = new RevisionMetadata(revisionData.timestamp, revisionData.revid, revisionData.user, revisionData.anon ?? false, revisionData.comment, revisionData.parsedcomment, revisionData.minor);
-        let revisionContent: any;
-        try {
-            revisionContent = JSON.parse(mainSlot.content);
-        } catch (e) {
-            console.warn(`Error parsing revision ${revisionData.revid}`, e);
-            continue;
-        }
-        yield parseRevisionData(metadata, revisionContent);
     }
 }
 
@@ -468,38 +529,6 @@ function getOrInsert<K, V>(map: Map<K, V>, key: K, ctor: { new(): V }): V {
     result = new ctor();
     map.set(key, result);
     return result;
-}
-
-function processRevisions(revisions: Iterable<ItemState>): BlameData {
-    let parts = new Map<ItemPart, Map<string, HistoryItem[]>>();
-    let currentState: ItemState | undefined = undefined;
-
-    for (let revision of revisions) {
-        if (currentState === undefined) {
-            currentState = revision;
-            continue;
-        }
-
-        for (let part of itemPartValues) {
-            appendHistory(
-                getOrInsert(parts, part, Map<string, HistoryItem[]>),
-                compareState(currentState.parts.get(part), revision.parts.get(part), currentState.metadata)
-            );
-        }
-
-        currentState = revision;
-    }
-
-    if (currentState !== undefined) {
-        for (let part of itemPartValues) {
-            appendHistory(
-                getOrInsert(parts, part, Map<string, HistoryItem[]>),
-                convertBaseItemState(currentState.metadata, currentState.parts.get(part))
-            );
-        }
-    }
-
-    return new BlameData(parts);
 }
 
 function appendHistory(history: Map<string, HistoryItem[]>, added: Map<string, HistoryItem>) {
@@ -542,7 +571,7 @@ function compareState(current: Map<string, string>, previous: Map<string, string
 function convertBaseItemState(revision: RevisionMetadata, state: Map<string, string>): Map<string, HistoryItem> {
     const result = new Map<string, HistoryItem>();
     for (let propKey of state.keys()) {
-        result.set(propKey, new HistoryItem(revision, EditType.FirstRevision, state.get(propKey).length));
+        result.set(propKey, new HistoryItem(revision, EditType.Created, state.get(propKey).length));
     }
     return result;
 }
