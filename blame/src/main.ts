@@ -8,6 +8,7 @@ enum Ordering {
 
 let ordering = Ordering.chrono;
 let data: BlameData | null = null;
+let dataEntityId: string | null = null;
 
 enum ItemPart {
     Labels = "labels",
@@ -26,7 +27,7 @@ orderingFunctions[Ordering.alpha] = compareHistoryItemsAlpha;
 orderingFunctions[Ordering.chrono] = compareHistoryItemsChrono;
 
 class BlameData {
-    constructor(public parts: Map<ItemPart, Map<string, HistoryItem[]>>) {
+    constructor(public parts: Map<ItemPart, Map<string, HistoryItem[]>>, public revisionCount: number) {
     }
 }
 
@@ -168,6 +169,7 @@ function handleLoadClick() {
     )
         .then(parsedData => {
             data = parsedData;
+            dataEntityId = id;
             renderScreen();
             hideSpinner();
         })
@@ -190,7 +192,9 @@ async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<B
     let parts = new Map<ItemPart, Map<string, HistoryItem[]>>();
     let currentState: ItemState | undefined = undefined;
 
+    let revisionCount = 0;
     for await (let revision of revisions) {
+        ++revisionCount;
         if (currentState === undefined) {
             currentState = revision;
             continue;
@@ -215,7 +219,7 @@ async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<B
         }
     }
 
-    return new BlameData(parts);
+    return new BlameData(parts, revisionCount);
 }
 
 async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultRevision[], void, void> {
@@ -303,6 +307,7 @@ function renderScreen() {
     const $mainContainer = document.getElementById('mainContainer');
     if (data === null) {
         $mainContainer.style.display = 'none';
+        document.getElementById('header-info').innerHTML = '';
         document.getElementById('emptyScreen').style.display = 'block';
     } else {
         document.getElementById('emptyScreen').style.display = 'none';
@@ -318,6 +323,7 @@ function renderData() {
     renderSection('Aliases', data.parts.get(ItemPart.Aliases));
     renderSection('Claims', data.parts.get(ItemPart.Claims));
     renderSection('Sitelinks', data.parts.get(ItemPart.Sitelinks));
+    document.getElementById('header-info').innerText = `${dataEntityId} (${data.revisionCount} revision${data.revisionCount === 1 ? '' : 's'})`;
 }
 
 function $E(tag: string, properties: Record<string, string>, children: (HTMLElement | string)[]): HTMLElement {
