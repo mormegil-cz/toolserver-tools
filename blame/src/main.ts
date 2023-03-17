@@ -142,22 +142,24 @@ function handleLoadClick() {
     if (requestedEntity === null) {
         return;
     }
-    if (!/^[LPQlpq][1-9][0-9]*$/.test(requestedEntity)) {
+    if (!/^(https?:\/\/(www\.)?wikidata\.org\/wiki\/)?((Lexeme:)?L|(Property:)?P|Q)[1-9][0-9]*$/i.test(requestedEntity)) {
         reportError('Invalid/unsupported entity identifier');
         return;
     }
+    const lastSeparator = Math.max(requestedEntity.lastIndexOf('/'), requestedEntity.lastIndexOf(':'));
+    const requestedId = lastSeparator >= 0 ? requestedEntity.substring(lastSeparator + 1) : requestedEntity;
     let id: string;
-    switch (requestedEntity[0].toUpperCase()) {
+    switch (requestedId[0].toUpperCase()) {
         case 'P':
-            id = 'Property:' + requestedEntity;
+            id = 'Property:' + requestedId.toUpperCase();
             break;
 
         case 'L':
-            id = 'Lexeme:' + requestedEntity;
+            id = 'Lexeme:' + requestedId.toUpperCase();
             break;
 
         case 'Q':
-            id = requestedEntity;
+            id = requestedId.toUpperCase();
             break;
     }
 
@@ -167,6 +169,11 @@ function handleLoadClick() {
         queryAndParseRevisions(id)
     )
         .then(parsedData => {
+            if (parsedData.revisionCount === 0) {
+                // failed, nothing to display
+                hideSpinner();
+                return;
+            }
             data = parsedData;
             dataEntityId = id;
             renderScreen();
