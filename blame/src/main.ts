@@ -3,10 +3,11 @@ import * as bootstrap from 'bootstrap'
 
 enum Ordering {
     alpha = "alpha",
-    chrono = "chrono"
+    newest = "newest",
+    oldest = "oldest",
 };
 
-let ordering = Ordering.chrono;
+let ordering = Ordering.newest;
 let data: BlameData | null = null;
 let dataEntityId: string | null = null;
 
@@ -24,7 +25,8 @@ const itemPartValues = <ItemPart[]>Object.values(ItemPart);
 
 const orderingFunctions: Record<string, ((aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]) => number)> = {};
 orderingFunctions[Ordering.alpha] = compareHistoryItemsAlpha;
-orderingFunctions[Ordering.chrono] = compareHistoryItemsChrono;
+orderingFunctions[Ordering.newest] = compareHistoryItemsNewest;
+orderingFunctions[Ordering.oldest] = compareHistoryItemsOldest;
 
 class BlameData {
     constructor(public parts: Map<ItemPart, Map<string, HistoryItem[]>>, public revisionCount: number) {
@@ -356,8 +358,9 @@ function renderSection(sectionId: string, entries: Map<string, HistoryItem[]>) {
         const idHeading = `${id}-heading`;
         const idContent = `${id}-content`;
         const timeInfo = determineTimeInfo(data);
+        const entryDeleted = data[0].editType === EditType.Deleted;
 
-        if (data[0].editType === EditType.Deleted) {
+        if (entryDeleted) {
             ++deletedEntries;
         } else {
             ++activeEntries;
@@ -386,7 +389,10 @@ function renderSection(sectionId: string, entries: Map<string, HistoryItem[]>) {
                 $E('div', { class: 'accordion-item' }, [
                     $E('h2', { class: 'accordion-header', id: idHeading }, [
                         $E('button', { class: 'accordion-button collapsed', type: 'button', 'data-bs-toggle': 'collapse', 'data-bs-target': `#${idContent}`, 'aria-expanded': 'false', 'aria-controls': idContent }, [
-                            `${key} (${timeInfo})`
+                            $E('span', null, [
+                                entryDeleted ? $E('s', null, [key]) : key,
+                                ` (${timeInfo})`
+                            ])
                         ])
                     ]),
                     $E('div', { class: 'accordion-collapse collapse', id: idContent, 'aria-labelledby': idHeading, 'data-bs-parent': `#${id}` }, [
@@ -458,12 +464,32 @@ function compareHistoryItemsAlpha(aKey: string, _a: HistoryItem[], bKey: string,
     return aKey.localeCompare(bKey, undefined, { numeric: true });
 }
 
-function compareHistoryItemsChrono(_aKey: string, a: HistoryItem[], _bKey: string, b: HistoryItem[]): number {
-    return -(getLatestTimestamp(a).localeCompare(getLatestTimestamp(b)));
+function compareHistoryItemsNewest(aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]): number {
+    const aLen = a.length;
+    const bLen = b.length;
+    const minLen = Math.min(aLen, bLen);
+    for (let i = 0; i < minLen; ++i) {
+        let aTs = a[i].revision.timestamp;
+        let bTs = b[i].revision.timestamp;
+        const cmp = aTs.localeCompare(bTs);
+        if (cmp !== 0) return -cmp;
+    }
+    const lenDiff = bLen - aLen;
+    return lenDiff === 0 ? aKey.localeCompare(bKey, undefined, { numeric: true }) : lenDiff;
 }
 
-function getLatestTimestamp(arr: HistoryItem[]): string {
-    return arr.length === 0 ? '' : arr[0].revision.timestamp;
+function compareHistoryItemsOldest(aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]): number {
+    const aLen = a.length;
+    const bLen = b.length;
+    const minLen = Math.min(aLen, bLen);
+    for (let i = 1; i <= minLen; ++i) {
+        let aTs = a[aLen - i].revision.timestamp;
+        let bTs = b[bLen - i].revision.timestamp;
+        const cmp = aTs.localeCompare(bTs);
+        if (cmp !== 0) return cmp;
+    }
+    const lenDiff = aLen - bLen;
+    return lenDiff === 0 ? aKey.localeCompare(bKey, undefined, { numeric: true }) : lenDiff;
 }
 
 function determineTimeInfo(items: HistoryItem[]): string {
