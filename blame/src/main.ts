@@ -16,12 +16,17 @@ enum ItemPart {
     Descriptions = "descriptions",
     Aliases = "aliases",
     Claims = "claims",
-    Sitelinks = "sitelinks"
+    Sitelinks = "sitelinks",
+
+    // Lexeme-specific
+    Lemmas = "lemmas",
+    Forms = "forms",
+    Senses = "senses",
 }
+const itemPartValues = <ItemPart[]>Object.values(ItemPart);
 
 const BATCH_SIZE: number | 'max' = 'max';
-
-const itemPartValues = <ItemPart[]>Object.values(ItemPart);
+const SUPPORTED_MODELS = new Set<string>(['wikibase-item', 'wikibase-property', 'wikibase-lexeme']);
 
 const orderingFunctions: Record<string, ((aKey: string, a: HistoryItem[], bKey: string, b: HistoryItem[]) => number)> = {};
 orderingFunctions[Ordering.alpha] = compareHistoryItemsAlpha;
@@ -137,8 +142,6 @@ function handleLoadClick() {
     if (requestedEntity === null) {
         return;
     }
-    // TODO: Support wikibase-property and wikibase-lexeme
-    /*
     if (!/^[LPQlpq][1-9][0-9]*$/.test(requestedEntity)) {
         reportError('Invalid/unsupported entity identifier');
         return;
@@ -156,13 +159,7 @@ function handleLoadClick() {
         case 'Q':
             id = requestedEntity;
             break;
-    }*/
-    if (!/^[Qq][1-9][0-9]*$/.test(requestedEntity)) {
-        reportError('Invalid/unsupported entity identifier');
-        return;
     }
-
-    const id = requestedEntity;
 
     showSpinner();
 
@@ -273,7 +270,7 @@ async function executeSingleApiCall(qid: string, revlimit: number | 'max', conti
 function* parseApiResponse(revisions: MWAPIQueryResultRevision[]): Iterable<ItemState> {
     for (let revisionData of revisions) {
         const mainSlot = revisionData.slots.main;
-        if (mainSlot.contentformat !== 'application/json' || mainSlot.contentmodel !== 'wikibase-item') {
+        if (mainSlot.contentformat !== 'application/json' || !SUPPORTED_MODELS.has(mainSlot.contentmodel)) {
             console.warn(`Unsupported content of revision ${revisionData.revid}: '${mainSlot.contentformat}', '${mainSlot.contentmodel}'`);
             continue;
         }
@@ -320,11 +317,13 @@ function renderScreen() {
 }
 
 function renderData() {
-    renderSection('Labels', data.parts.get(ItemPart.Labels));
-    renderSection('Descriptions', data.parts.get(ItemPart.Descriptions));
-    renderSection('Aliases', data.parts.get(ItemPart.Aliases));
-    renderSection('Claims', data.parts.get(ItemPart.Claims));
-    renderSection('Sitelinks', data.parts.get(ItemPart.Sitelinks));
+    for (let part of itemPartValues) {
+        const sectionId = part[0].toUpperCase() + part.substring(1);
+        const partData = data.parts.get(part);
+        const partVisible = !!partData.size;
+        setSectionVisibility(sectionId, partVisible);
+        if (partVisible) renderSection(sectionId, partData);
+    }
     document.getElementById('header-info').innerText = `${dataEntityId} (${data.revisionCount} revision${data.revisionCount === 1 ? '' : 's'})`;
 }
 
@@ -337,6 +336,13 @@ function $E(tag: string, properties: Record<string, string>, children: (HTMLElem
     }
     el.append(...children);
     return el;
+}
+
+function setSectionVisibility(sectionId: string, visible: boolean) {
+    const containerId = 'sectionContent' + sectionId;
+    let $container = document.getElementById(containerId);
+    while ($container && !$container.classList.contains('accordion-item')) $container = $container.parentElement;
+    $container.style.display = visible ? 'block' : 'none';
 }
 
 function renderSection(sectionId: string, entries: Map<string, HistoryItem[]>) {
@@ -426,6 +432,7 @@ function makeSectionSummary(activeEntries: number, deletedEntries: number): stri
     } else if (deletedEntries > 0) {
         return `${deletedEntries} deleted`;
     } else {
+        // should not happen
         return `No data`;
     }
 }
