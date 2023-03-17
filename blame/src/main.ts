@@ -118,8 +118,12 @@ function init() {
 }
 
 function reportError(error: string) {
-    // TODO: Bootstrap error toast
-    console.error(error);
+    console.log(error);
+    const $toast = $E('div', { class: 'alert alert-danger alert-dismissible fade show', role: 'alert' }, [
+        error,
+        $E('button', { type: 'button', class: 'btn-close', 'data-bs-dismiss': 'alert', 'aria-label': 'Close'}, [])
+    ]);
+    document.getElementById('alertContainer').appendChild($toast);
 }
 
 let spinnerCounter = 0;
@@ -241,7 +245,7 @@ async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultR
 
         const pageData = response.query.pages[0];
         if (pageData.missing || !pageData.pageid) {
-            reportError('Entity not found');
+            reportError('Requested entity not found');
             console.debug(response);
             return;
         }
