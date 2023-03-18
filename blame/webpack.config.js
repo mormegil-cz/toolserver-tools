@@ -54,6 +54,9 @@ module.exports = {
           from: '*.htm',
           context: 'src/',
         },
+        {
+          from: 'assets/*'
+        },
       ],
     }),
   ],
