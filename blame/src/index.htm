@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Wikidata Blame</title>
+    <link rel="stylesheet" href="./main.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="assets/logo.svg" alt="Logo" width="43" height="24" class="d-inline-block align-text-top">
+                Wikidata Blame <span id="header-info"></span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navComboOrderingBtn" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Ordering
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navComboOrderingBtn" id="navComboOrdering">
+                            <li><a id="navComboOrderingAlpha" class="dropdown-item" href="#" data-ordering="alpha">Alphabetical</a></li>
+                            <li><a id="navComboOrderingNewest" class="dropdown-item active" href="#" aria-current="true" data-ordering="newest">Newest</a></li>
+                            <li><a id="navComboOrderingOldest" class="dropdown-item" href="#" aria-current="true" data-ordering="oldest">Oldest</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <form class="d-flex" role="search">
+                    <button type="button" class="btn btn-outline-success" role="search">Load item</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div id="spinner" style="display:none">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+
+    <div class="container-fluid" id="alertContainer">
+    </div>
+
+    <div id="emptyScreen" class="container">
+        <div class="bg-light p-5 rounded-lg m-3">
+            <h1 class="display-4">
+                Wikidata Blame
+                <img src="assets/logo.svg" alt="Logo" width="126" height="72" class="d-inline-block align-text-top">
+            </h1>
+            <p class="lead">This is a tool to display the history of a Wikidata entity in a structured form.</p>
+            <hr class="my-4">
+            <p>To begin, choose an item to load.</p>
+            <button type="button" class="btn btn-primary btn-lg" role="search">Load item</a>
+        </div>
+    </div>
+
+    <main class="container-fluid" id="mainContainer" style="display:none">
+        <div class="accordion">
+            <div class="accordion-item" id="sectionLabels">
+                <h2 class="accordion-header" id="sectionHeadingLabels">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyLabels" aria-expanded="false" aria-controls="sectionBodyLabels">
+                        Labels (<span id="sectionHeaderLabels"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyLabels" class="accordion-collapse collapse" aria-labelledby="sectionHeadingLabels">
+                    <div class="accordion-body" id="sectionContentLabels">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionDescriptions">
+                <h2 class="accordion-header" id="sectionHeadingDescriptions">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyDescriptions" aria-expanded="false" aria-controls="sectionBodyDescriptions">
+                        Descriptions (<span id="sectionHeaderDescriptions"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyDescriptions" class="accordion-collapse collapse" aria-labelledby="sectionHeadingDescriptions">
+                    <div class="accordion-body" id="sectionContentDescriptions">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionAliases">
+                <h2 class="accordion-header" id="sectionHeadingAliases">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyAliases" aria-expanded="false" aria-controls="sectionBodyAliases">
+                        Aliases (<span id="sectionHeaderAliases"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyAliases" class="accordion-collapse collapse" aria-labelledby="sectionHeadingAliases">
+                    <div class="accordion-body" id="sectionContentAliases">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionLemmas">
+                <h2 class="accordion-header" id="sectionHeadingLemmas">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyLemmas" aria-expanded="false" aria-controls="sectionBodyLemmas">
+                        Lemmas (<span id="sectionHeaderLemmas"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyLemmas" class="accordion-collapse collapse" aria-labelledby="sectionHeadingLemmas">
+                    <div class="accordion-body" id="sectionContentLemmas">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionClaims">
+                <h2 class="accordion-header" id="sectionHeadingClaims">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyClaims" aria-expanded="false" aria-controls="sectionBodyClaims">
+                        Claims (<span id="sectionHeaderClaims"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyClaims" class="accordion-collapse collapse" aria-labelledby="sectionHeadingClaims">
+                    <div class="accordion-body" id="sectionContentClaims">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionSenses">
+                <h2 class="accordion-header" id="sectionHeadingSenses">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodySenses" aria-expanded="false" aria-controls="sectionBodySenses">
+                        Senses (<span id="sectionHeaderSenses"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodySenses" class="accordion-collapse collapse" aria-labelledby="sectionHeadingSenses">
+                    <div class="accordion-body" id="sectionContentSenses">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionForms">
+                <h2 class="accordion-header" id="sectionHeadingForms">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodyForms" aria-expanded="false" aria-controls="sectionBodyForms">
+                        Forms (<span id="sectionHeaderForms"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodyForms" class="accordion-collapse collapse" aria-labelledby="sectionHeadingForms">
+                    <div class="accordion-body" id="sectionContentForms">
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" id="sectionSitelinks">
+                <h2 class="accordion-header" id="sectionHeadingSitelinks">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionBodySitelinks" aria-expanded="false" aria-controls="sectionBodySitelinks">
+                        Sitelinks (<span id="sectionHeaderSitelinks"></span>)
+                    </button>
+                </h2>
+                <div id="sectionBodySitelinks" class="accordion-collapse collapse" aria-labelledby="sectionHeadingSitelinks">
+                    <div class="accordion-body" id="sectionContentSitelinks">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="./bundle.js"></script>
+</body>
+
+</html>

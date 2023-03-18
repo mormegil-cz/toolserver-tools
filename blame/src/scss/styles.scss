@@ -1,0 +1,13 @@
+@import "~bootstrap/scss/bootstrap";
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+#spinner {
+    background: $body-color url('../assets/spinner.gif') center no-repeat;
+    opacity: 0.7;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 100;
+}
