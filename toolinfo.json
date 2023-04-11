@@ -5,7 +5,7 @@
         "name" : "mormegil-catcompleter",
         "keywords" : "categories, interwiki",
         "author" : "Mormegil",
-        "url" : "http://tools.wmflabs.org/mormegil/catcompleter/"
+        "url" : "https://mormegil.toolforge.org/catcompleter"
     },
     {
         "title" : "Category Suggester",
@@ -13,7 +13,7 @@
         "name" : "mormegil-catsuggest",
         "keywords" : "categories, interwiki",
         "author" : "Mormegil",
-        "url" : "http://tools.wmflabs.org/mormegil/catsuggest/"
+        "url" : "https://mormegil.toolforge.org/catsuggest"
     },
     {
         "title" : "Category without coordinates",
@@ -21,7 +21,7 @@
         "name" : "mormegil-catwithoutcoords",
         "keywords" : "categories, coordinates, map",
         "author" : "Mormegil",
-        "url" : "http://tools.wmflabs.org/mormegil/catwithoutcoords/"
+        "url" : "https://mormegil.toolforge.org/catwithoutcoords"
     },
     {
         "title" : "Wikipedia Biographical Articles Counter",
@@ -29,7 +29,7 @@
         "name" : "mormegil-natbirths",
         "keywords" : "bio, biography, wikipedia",
         "author" : "Mormegil",
-        "url" : "http://tools.wmflabs.org/mormegil/natbirths/"
+        "url" : "https://mormegil.toolforge.org/natbirths"
     },
     {
         "title" : "Random article list",
@@ -37,6 +37,6 @@
         "name" : "mormegil-randomlist",
         "keywords" : "random",
         "author" : "Mormegil",
-        "url" : "http://tools.wmflabs.org/mormegil/randomlist/"
+        "url" : "https://mormegil.toolforge.org/randomlist"
     }
 ]
