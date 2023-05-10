@@ -7,7 +7,7 @@ enum Ordering {
     oldest = "oldest",
 };
 
-let ordering = Ordering.newest;
+let ordering = Ordering.alpha;
 let data: BlameData | null = null;
 let dataEntityId: string | null = null;
 
@@ -115,6 +115,15 @@ function init() {
     document.querySelectorAll('button[role=search]').forEach(elem => elem.addEventListener('click', handleLoadClick));
 
     renderScreen();
+
+    loadFromUrl();
+}
+
+function loadFromUrl() {
+    const hash = window.location.hash;
+    if (/^#[LPQ][1-9][0-9]*$/.test(hash)) {
+        loadEntity(hash.substring(1));
+    }
 }
 
 function reportError(error: string) {
@@ -141,15 +150,7 @@ function hideSpinner() {
     }
 }
 
-function handleLoadClick() {
-    const requestedEntity = window.prompt('Entity to load?', 'Q42');
-    if (requestedEntity === null) {
-        return;
-    }
-    if (!/^(https?:\/\/(www\.)?wikidata\.org\/wiki\/)?((Lexeme:)?L|(Property:)?P|Q)[1-9][0-9]*$/i.test(requestedEntity)) {
-        reportError('Invalid/unsupported entity identifier');
-        return;
-    }
+function loadEntity(requestedEntity: string) {
     const lastSeparator = Math.max(requestedEntity.lastIndexOf('/'), requestedEntity.lastIndexOf(':'));
     const requestedId = lastSeparator >= 0 ? requestedEntity.substring(lastSeparator + 1) : requestedEntity;
     let id: string;
@@ -188,6 +189,18 @@ function handleLoadClick() {
             reportError("Error loading/parsing item");
             hideSpinner();
         });
+}
+
+function handleLoadClick() {
+    const requestedEntity = window.prompt('Entity to load?', 'Q42');
+    if (requestedEntity === null) {
+        return;
+    }
+    if (!/^(https?:\/\/(www\.)?wikidata\.org\/wiki\/)?((Lexeme:)?L|(Property:)?P|Q)[1-9][0-9]*$/i.test(requestedEntity)) {
+        reportError('Invalid/unsupported entity identifier');
+        return;
+    }
+    loadEntity(requestedEntity);
 }
 
 async function* queryAndParseRevisions(id: string): AsyncGenerator<ItemState, void, void> {
