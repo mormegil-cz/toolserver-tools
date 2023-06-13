@@ -5,6 +5,8 @@
         "name" : "mormegil-catcompleter",
         "keywords" : "categories, interwiki",
         "author" : "Mormegil",
+        "tool_type": "web app",
+        "license": "GPL-3.0-only",
         "url" : "https://mormegil.toolforge.org/catcompleter"
     },
     {
@@ -13,6 +15,8 @@
         "name" : "mormegil-catsuggest",
         "keywords" : "categories, interwiki",
         "author" : "Mormegil",
+        "tool_type": "web app",
+        "license": "GPL-3.0-only",
         "url" : "https://mormegil.toolforge.org/catsuggest"
     },
     {
@@ -21,6 +25,8 @@
         "name" : "mormegil-catwithoutcoords",
         "keywords" : "categories, coordinates, map",
         "author" : "Mormegil",
+        "tool_type": "web app",
+        "license": "GPL-3.0-only",
         "url" : "https://mormegil.toolforge.org/catwithoutcoords"
     },
     {
@@ -29,6 +35,8 @@
         "name" : "mormegil-natbirths",
         "keywords" : "bio, biography, wikipedia",
         "author" : "Mormegil",
+        "tool_type": "web app",
+        "license": "GPL-3.0-only",
         "url" : "https://mormegil.toolforge.org/natbirths"
     },
     {
@@ -37,6 +45,8 @@
         "name" : "mormegil-randomlist",
         "keywords" : "random",
         "author" : "Mormegil",
+        "tool_type": "web app",
+        "license": "GPL-3.0-only",
         "url" : "https://mormegil.toolforge.org/randomlist"
     }
 ]
