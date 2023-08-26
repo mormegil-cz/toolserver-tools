@@ -17,6 +17,11 @@ const treeNodes = new vis.DataSet<vis.Node>([]);
 const treeEdges = new vis.DataSet<vis.Edge>([]);
 
 const treeOptions: vis.Options = {
+    layout: {
+        hierarchical: {
+            enabled: true
+        }
+    }
 };
 const treeData: vis.Data = {
     nodes: treeNodes,
@@ -43,10 +48,8 @@ function rerenderTree() {
         if (cls === seekedQid) {
             // TODO: Finished game flag displaying the label
             node.label = '?';
-            node.level = 9999;
         } else if (cls === ROOT_CLASS) {
             node.label = classData[cls].l;
-            node.level = 0;
             node.title = cls;
         } else {
             node.label = classData[cls].l;
