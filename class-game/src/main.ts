@@ -44,7 +44,7 @@ function rerenderTree() {
     treeNodes.clear();
 
     for (const cls of visibleClasses) {
-        const node = <vis.Node>{id: cls};
+        const node = <vis.Node>{ id: cls };
         if (cls === seekedQid) {
             // TODO: Finished game flag displaying the label
             node.label = '?';
@@ -155,6 +155,7 @@ function init() {
 function initClassData(data: WDClassesSet) {
     classData = data;
     classIndex = Object.keys(data);
+    validateClassData();
 }
 
 function requestStartNewGame() {
@@ -183,7 +184,7 @@ function startNewGame() {
     addAllParentsOfVisible(seekedQid);
 
     rerenderTree();
-    
+
     toastInfo("New game ready");
 }
 
@@ -244,6 +245,73 @@ function networkClicked(evt: any) {
     }
 
     window.open(`https://www.wikidata.org/wiki/${clickedClass}`);
+}
+
+function validateClassData() {
+    const missing = new Map<string, string[]>();
+    for (const qid in classData) {
+        const data = classData[qid];
+        for (const parent of data.s) {
+            if (!classData[parent]) {
+                const parentList = missing.get(parent) || [];
+                parentList.push(qid);
+                missing.set(parent, parentList);
+            }
+        }
+        if (!data.s.length && qid !== ROOT_CLASS) {
+            console.error("Class", qid, "has no parents!");
+        }
+    }
+    for (const missingCls of missing.entries()) {
+        console.error("Parent class", missingCls[0], "is missing, required by", missingCls[1].join(', '));
+    }
+
+    console.debug("Finding cycles...")
+    for (const qid in classData) {
+        findCyclesRec(qid);
+    }
+    if (cycleSet.size) {
+        console.error("Cycles found!");
+        for (const cycle of cycleSet) {
+            console.log(cycle);
+        }
+    }
+}
+
+const cameFrom = new Map<string, string>();
+const cycleSet = new Set<string>();
+function findCyclesRec(start: string) {
+    const data = classData[start];
+    if (!data) return;
+    for (const parent of data.s) {
+        if (cameFrom.has(parent)) {
+            // cycle found!
+            const cycleMembers = [];
+            cycleMembers.push(parent);
+            for (let pos = start; pos && pos !== parent; pos = cameFrom.get(pos)) {
+                cycleMembers.push(pos);
+            }
+            cycleSet.add(sortCycleMembers(cycleMembers).join(' → '));
+            continue;
+        }
+
+        cameFrom.set(parent, start);
+        findCyclesRec(parent);
+        cameFrom.delete(parent);
+    }
+}
+
+function sortCycleMembers(xs: string[]): string[] {
+    let minIdx = 0;
+    let minValue = xs[0];
+    for (let i = 1; i < xs.length; ++i) {
+        if (xs[i] < minValue) {
+            minValue = xs[i];
+            minIdx = i;
+        }
+    }
+    if (minIdx === 0) return xs;
+    return xs.slice(minIdx).concat(xs.slice(0, minIdx));
 }
 
 window.onload = init;
