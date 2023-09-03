@@ -19,7 +19,7 @@ const treeEdges = new vis.DataSet<vis.Edge>([]);
 const treeOptions: vis.Options = {
     layout: {
         hierarchical: {
-            enabled: true
+            enabled: false
         }
     }
 };
@@ -48,12 +48,18 @@ function rerenderTree() {
         if (cls === seekedQid) {
             // TODO: Finished game flag displaying the label
             node.label = '?';
+            node.size = 2;
+            node.value = 2;
         } else if (cls === ROOT_CLASS) {
             node.label = classData[cls].l;
             node.title = cls;
+            node.size = 2;
+            node.value = 2;
         } else {
             node.label = classData[cls].l;
             node.title = cls;
+            node.size = 1;
+            node.value = 1;
         }
         treeNodes.add(node);
     }
@@ -62,24 +68,30 @@ function rerenderTree() {
     for (const cls of visibleClasses) {
         if (cls === ROOT_CLASS) continue;
 
-        const parent = breadthFirstSearch(cls, visibleClasses);
-        treeEdges.add(<vis.Edge>{
-            from: cls,
-            to: parent,
-            arrows: { to: true }
-        });
+        const parents = breadthFirstSearch(cls, visibleClasses);
+        for (const parent of parents) {
+            treeEdges.add(<vis.Edge>{
+                from: cls,
+                to: parent,
+                arrows: { to: true }
+            });
+        }
     }
 }
 
-function breadthFirstSearch(from: string, toSet: Set<string>): string {
+function breadthFirstSearch(from: string, toSet: Set<string>): Set<string> {
     const queue: string[] = [from];
     let pos = 0;
+    const result = new Set<string>();
     const visited = new Set<string>();
     while (pos < queue.length) {
         let curr = queue[pos++];
         if (curr !== from && toSet.has(curr)) {
             console.debug("Path from", from, classData[from].l, "leads through", curr, classData[curr].l);
-            return curr;
+            result.add(curr);
+            // do not continue through this path
+            visited.add(curr);
+            continue;
         }
         if (visited.has(curr)) {
             continue;
@@ -94,9 +106,12 @@ function breadthFirstSearch(from: string, toSet: Set<string>): string {
             queue.push(parent);
         }
     }
-    // what!
-    console.error("Unable to find path", from, toSet);
-    toastError("Unexpected error! Disconnected graph!");
+    if (!result.size) {
+        // what!
+        console.error("Unable to find path", from, toSet);
+        toastError("Unexpected error! Disconnected graph!");
+    }
+    return result;
 }
 
 function showToast(msg: string, className: string) {
@@ -210,16 +225,23 @@ function addAttemptedClass(chosenQid: string) {
     visibleClasses.add(chosenQid);
 
     // and now choose _another_ class, which is the nearest parent of the chosen class and _any_ of the visible classes
-    const nearestPredecessor = breadthFirstSearch(chosenQid, parentsOfVisible);
-    if (nearestPredecessor === ROOT_CLASS) {
-        console.debug("Oops, no common path to root!");
-    } else {
-        visibleClasses.add(nearestPredecessor);
+    const predecessors = breadthFirstSearch(chosenQid, parentsOfVisible);
+    for (const predecessor of predecessors) {
+        if (predecessor === ROOT_CLASS) {
+            if (predecessors.size === 1) {
+                console.debug("Oops, no common path to root!");
+            }
+        } else {
+            visibleClasses.add(predecessor);
+            break;
+        }
     }
 
+    /*
     for (const pv of parentsOfVisible) {
         console.debug(pv, classData[pv]);
     }
+    */
     addAllParentsOfVisible(chosenQid);
     rerenderTree();
 }
@@ -252,6 +274,11 @@ function validateClassData() {
     for (const qid in classData) {
         const data = classData[qid];
         for (const parent of data.s) {
+            if (parent === '') {
+                // patch-up; TODO: clean original data and remove this
+                classData[qid].s = [];
+                break;
+            }
             if (!classData[parent]) {
                 const parentList = missing.get(parent) || [];
                 parentList.push(qid);
