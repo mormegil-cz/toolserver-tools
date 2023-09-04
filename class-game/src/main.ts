@@ -1,14 +1,22 @@
 import * as Toastify from 'toastify-js';
 import * as vis from 'vis-network/standalone';
+import autocomplete from 'autocompleter';
+import TrieSearch from 'trie-search';
 
 const ROOT_CLASS = 'Q35120';
+
+const COLOR_SEEKED = '#ffcccc';
+const COLOR_ROOT = 'lightblue';
 
 const $: (elementId: string) => HTMLElement | null = document.getElementById.bind(document);
 
 let classData: WDClassesSet = undefined;
 let classIndex: string[] = undefined;
+let classNameTrie: TrieSearch<WDClassAutocomplete> = undefined;
 
-let seekedQid: string = undefined;
+let seekedQid: string|undefined = undefined;
+let gameFinished: boolean = undefined;
+let moveCounter: number = undefined;
 
 const visibleClasses = new Set<string>();
 const parentsOfVisible = new Set<string>();
@@ -30,6 +38,12 @@ const treeData: vis.Data = {
 const treeNetwork = new vis.Network($('display'), treeData, treeOptions);
 treeNetwork.on('click', networkClicked);
 
+interface WDClassAutocomplete {
+    qid: string;
+    qidNum: number;
+    label: string;
+}
+
 interface WDClassInfo {
     l: string;
     s: string[];
@@ -46,19 +60,17 @@ function rerenderTree() {
     for (const cls of visibleClasses) {
         const node = <vis.Node>{ id: cls };
         if (cls === seekedQid) {
-            // TODO: Finished game flag displaying the label
-            node.label = '?';
-            node.size = 2;
-            node.value = 2;
+            node.label = gameFinished ? classData[cls].l : '?';
+            node.value = 20;
+            node.color = COLOR_SEEKED;
         } else if (cls === ROOT_CLASS) {
             node.label = classData[cls].l;
             node.title = cls;
-            node.size = 2;
-            node.value = 2;
+            node.value = 20;
+            node.color = COLOR_ROOT;
         } else {
             node.label = classData[cls].l;
             node.title = cls;
-            node.size = 1;
             node.value = 1;
         }
         treeNodes.add(node);
@@ -136,8 +148,21 @@ function toastError(msg: string) {
 function init() {
     const $btnNewGame = $('btnNewGame') as HTMLButtonElement;
     $btnNewGame.addEventListener('click', requestStartNewGame);
-    const $btnAddRandom = $('btnAddRandom') as HTMLButtonElement;
-    $btnAddRandom.addEventListener('click', addRandomHint);
+    const $btnAddHint = $('btnAddHint') as HTMLButtonElement;
+    $btnAddHint.addEventListener('click', addHint);
+    const $editGuess = $('editGuess') as HTMLInputElement;
+    autocomplete({
+        input: $editGuess,
+        fetch: function(text, update) {
+            const results = classNameTrie.search(text);
+            results.sort((a, b) => a.qidNum - b.qidNum);
+            update(results);
+        },
+        onSelect: function(item: WDClassAutocomplete) {
+            $editGuess.value = '';
+            addGuess(item);
+        }
+    });
 
     const $spinner = $('spinner');
 
@@ -167,10 +192,63 @@ function init() {
 
 }
 
+function addGuess(item: WDClassAutocomplete) {
+    const chosenQid = item.qid;
+    if (chosenQid === seekedQid) {
+        // done!
+        gameFinished = true;
+        toastInfo('Great! You have won in ' + moveCounter + ' move' + (moveCounter === 1 ? '' : 's'));
+        rerenderTree();
+        seekedQid = undefined;
+        return;
+    }
+    addAttemptedClass(chosenQid);
+}
+
 function initClassData(data: WDClassesSet) {
     classData = data;
     classIndex = Object.keys(data);
+
+    classNameTrie = new TrieSearch<WDClassAutocomplete>('label', {
+        min: 2,
+        ignoreCase: true,
+        splitOnRegEx: false,
+        indexField: 'qid'
+    });
+    for (const qid of classIndex) {
+        classNameTrie.add({
+            qid: qid,
+            qidNum: parseInt(qid.substring(1), 10),
+            label: buildFullLabel(qid)
+        });
+    }
+
     validateClassData();
+}
+
+function buildFullLabel(qid: string) {
+    const data = classData[qid];
+    if (!data) {
+        console.warn('No class data for', qid);
+        return qid;
+    }
+    const labelParts = [data.l];
+    if (data.s.length) {
+        labelParts.push(' (');
+        let first = true;
+        for (const superclass of data.s) {
+            if (!first) labelParts.push(', ');
+            first = false;
+            const superdata = classData[superclass];
+            if (!superdata) {
+                console.warn('No superclass', superclass, 'of', qid);
+                continue;
+            }
+            labelParts.push(superdata.l);
+        }
+        labelParts.push(')');
+    }
+    return labelParts.join('');
 }
 
 function requestStartNewGame() {
@@ -187,6 +265,8 @@ function requestStartNewGame() {
 function startNewGame() {
     let idx = Math.floor(classIndex.length * Math.random());
     seekedQid = classIndex[idx];
+    gameFinished = false;
+    moveCounter = 0;
     console.debug("Starting new game; seeking", seekedQid, classData[seekedQid].l);
 
     visibleClasses.clear();
@@ -221,6 +301,7 @@ function addAllParentsOfVisible(start: string) {
 }
 
 function addAttemptedClass(chosenQid: string) {
+    ++moveCounter;
     console.debug("Adding", chosenQid, classData[chosenQid].l);
     visibleClasses.add(chosenQid);
 
@@ -246,7 +327,9 @@ function addAttemptedClass(chosenQid: string) {
     rerenderTree();
 }
 
-function addRandomHint() {
+function addHint() {
+    // TODO: Find the furthest not-yet visible “parent” of the seeked class and add it
+    
     let chosenQid: string;
     do {
         const idx = Math.floor(classIndex.length * Math.random());
@@ -259,10 +342,9 @@ function networkClicked(evt: any) {
     if (!evt.nodes || !evt.nodes.length) return;
 
     const clickedClass = evt.nodes[0];
-    if (clickedClass === seekedQid) {
+    if (clickedClass === seekedQid && !gameFinished) {
         // ha!
         toastInfo('Yeah, that one you need to find out!');
-        // TODO: Finished game flag
         return;
     }
 

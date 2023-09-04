@@ -51,7 +51,12 @@ module.exports = {
                     from: 'toastify.css',
                     to: 'lib/',
                     context: 'node_modules/toastify-js/src/'
-                }
+                },
+                {
+                    from: 'autocomplete.css',
+                    to: 'lib/',
+                    context: 'node_modules/autocompleter/'
+                },
             ],
         }),
     ],

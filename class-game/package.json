@@ -22,7 +22,9 @@
     "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
+    "autocompleter": "^9.1.0",
     "toastify-js": "^1.12.0",
+    "trie-search": "^1.4.2",
     "vis-data": "^7.1.4",
     "vis-network": "^9.1.4"
   }
