@@ -13,16 +13,15 @@ const $: (elementId: string) => HTMLElement | null = document.getElementById.bin
 let classData: WDClassesSet = undefined;
 let classIndex: string[] = undefined;
 let classNameTrie: TrieSearch<WDClassAutocomplete> = undefined;
+let classNameTrieFull: TrieSearch<WDClassAutocomplete> = undefined;
 
 let seekedQid: string | undefined = undefined;
 let gameFinished: boolean = undefined;
 let moveCounter: number = undefined;
+let useFullSearch: boolean = false;
 
 const visibleClasses = new Set<string>();
 const parentsOfVisible = new Set<string>();
-
-const treeNodeIndex = new Map<string, VisTreeNode>();
-const treeEdgeIndex = new Map<string, vis.Edge>();
 
 const treeNodes = new vis.DataSet<VisTreeNode>([]);
 const treeEdges = new vis.DataSet<VisTreeEdge>([]);
@@ -191,7 +190,7 @@ function init() {
     autocomplete({
         input: $editGuess,
         fetch: function (text, update) {
-            const results = classNameTrie.search(text);
+            const results = (useFullSearch ? classNameTrieFull : classNameTrie).search(text);
             results.sort((a, b) => a.qidNum - b.qidNum);
             update(results);
         },
@@ -200,6 +199,8 @@ function init() {
             addGuess(item);
         }
     });
+    const $cbFull = $('cbFull') as HTMLInputElement;
+    $cbFull.addEventListener('change', () => useFullSearch = $cbFull.checked);
 
     const $spinner = $('spinner');
 
@@ -256,12 +257,19 @@ function initClassData(data: WDClassesSet) {
         splitOnRegEx: false,
         indexField: 'qid'
     });
+    classNameTrieFull = new TrieSearch<WDClassAutocomplete>('label', {
+        min: 2,
+        ignoreCase: true,
+        indexField: 'qid'
+    });
     for (const qid of classIndex) {
-        classNameTrie.add({
+        const trieEntry = {
             qid: qid,
             qidNum: parseInt(qid.substring(1), 10),
             label: buildFullLabel(qid)
-        });
+        };
+        classNameTrie.add(trieEntry);
+        classNameTrieFull.add(trieEntry);
     }
 
     validateClassData();
