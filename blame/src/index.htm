@@ -38,10 +38,6 @@
         </div>
     </nav>
 
-    <div id="spinner" style="display:none">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-
     <div class="container-fluid" id="alertContainer">
     </div>
 
@@ -150,6 +146,16 @@
             </div>
         </div>
     </main>
+
+    <div id="modalBackground" style="display:none">
+    </div>
+
+    <dialog id="dlgLoading">
+        <h4>Loading…</h4>
+        <progress id="progress"></progress>
+        <div id="labelProgress"></div>
+        <button id="btnCancel" class="btn btn-danger btn-sm">Stop</button>
+    </dialog>
 
     <script src="./bundle.js"></script>
 </body>

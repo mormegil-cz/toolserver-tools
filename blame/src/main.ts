@@ -10,6 +10,8 @@ enum Ordering {
 let ordering = Ordering.alpha;
 let data: BlameData | null = null;
 let dataEntityId: string | null = null;
+let dataEntityRevisionCount: number | null = null;
+let stopRequested = false;
 
 enum ItemPart {
     Labels = "labels",
@@ -67,22 +69,27 @@ class RevisionMetadata {
     }
 }
 
+interface MWAPIPageHistoryCountResponse {
+    count: number;
+    limit: boolean;
+}
+
 interface MWAPIQueryResultRevision {
-    revid: number;
-    parentid: number;
-    minor: boolean;
+    revid?: number;
+    parentid?: number;
+    minor?: boolean;
     anon?: boolean;
-    user: string;
+    user?: string;
     timestamp: string;
-    slots: {
+    slots?: {
         main: {
             contentmodel: string;
             contentformat: string;
             content: string;
         }
     };
-    comment: string;
-    parsedcomment: string;
+    comment?: string;
+    parsedcomment?: string;
 }
 
 interface MWAPIQueryResponse {
@@ -114,6 +121,8 @@ function init() {
     document.querySelectorAll('#navComboOrdering a').forEach(elem => elem.addEventListener('click', handleOrderingChange));
     document.querySelectorAll('button[role=search]').forEach(elem => elem.addEventListener('click', handleLoadClick));
 
+    document.getElementById('btnCancel').addEventListener('click', handleCancelClick);
+
     renderScreen();
 
     loadFromUrl();
@@ -126,28 +135,48 @@ function loadFromUrl() {
     }
 }
 
-function reportError(error: string) {
+function reportToast(error: string, type: 'primary'|'secondary'|'success'|'danger'|'warning'|'info'|'light'|'dark') {
     console.log(error);
-    const $toast = $E('div', { class: 'alert alert-danger alert-dismissible fade show', role: 'alert' }, [
+    const $toast = $E('div', { class: `alert alert-${type} alert-dismissible fade show`, role: 'alert' }, [
         error,
-        $E('button', { type: 'button', class: 'btn-close', 'data-bs-dismiss': 'alert', 'aria-label': 'Close'}, [])
+        $E('button', { type: 'button', class: 'btn-close', 'data-bs-dismiss': 'alert', 'aria-label': 'Close' }, [])
     ]);
     document.getElementById('alertContainer').appendChild($toast);
 }
 
-let spinnerCounter = 0;
-function showSpinner() {
-    ++spinnerCounter;
-    if (spinnerCounter === 1) {
-        document.getElementById('spinner').style.display = 'block';
-    }
+function reportError(error: string) {
+    reportToast(error, 'danger');
 }
 
-function hideSpinner() {
-    --spinnerCounter;
-    if (spinnerCounter === 0) {
-        document.getElementById('spinner').style.display = 'none';
+function reportWarning(error: string) {
+    reportToast(error, 'warning');
+}
+
+function showProgressDialog() {
+    stopRequested = false;
+    setProgress(null, null, null);
+    document.getElementById('modalBackground').style.display = 'block';
+    document.getElementById('dlgLoading').style.display = 'block';
+}
+
+function setProgress(currentRev: number | null, revCount: number | null, currTimestamp: string | null) {
+    const $progress = <HTMLProgressElement>document.getElementById('progress');
+    const $labelProgress = <HTMLDivElement>document.getElementById('labelProgress');
+    if (revCount === null) {
+        $progress.value = null;
+        $progress.max = null;
+        $labelProgress.innerText = '';
+        return;
     }
+
+    $progress.value = currentRev;
+    $progress.max = revCount;
+    $labelProgress.innerText = currTimestamp ? `${currentRev}/${revCount} (${currTimestamp})` : `${currentRev}/${revCount}`;
+}
+
+function hideProgressDialog() {
+    document.getElementById('dlgLoading').style.display = 'none';
+    document.getElementById('modalBackground').style.display = 'none';
 }
 
 function loadEntity(requestedEntity: string) {
@@ -168,26 +197,34 @@ function loadEntity(requestedEntity: string) {
             break;
     }
 
-    showSpinner();
+    showProgressDialog();
 
-    processRevisions(
-        queryAndParseRevisions(id)
-    )
+    getEntityRevisionCount(id)
+        .then(revisionCount => {
+            dataEntityRevisionCount = revisionCount;
+            setProgress(0, dataEntityRevisionCount, null);
+            return processRevisions(
+                queryAndParseRevisions(id)
+            )
+        })
         .then(parsedData => {
             if (parsedData.revisionCount === 0) {
                 // failed, nothing to display
-                hideSpinner();
+                hideProgressDialog();
                 return;
             }
             data = parsedData;
             dataEntityId = id;
             renderScreen();
-            hideSpinner();
+            hideProgressDialog();
+            if (stopRequested) {
+                reportWarning('Loading interrupted. Results will be incomplete/wrong.');
+            }
         })
         .catch(error => {
             console.error(error);
             reportError("Error loading/parsing item");
-            hideSpinner();
+            hideProgressDialog();
         });
 }
 
@@ -203,12 +240,33 @@ function handleLoadClick() {
     loadEntity(requestedEntity);
 }
 
+function handleCancelClick() {
+    stopRequested = true;
+    const btnCancel = <HTMLButtonElement>document.getElementById('btnCancel');
+    btnCancel.disabled = true;
+    return false;
+}
+
 async function* queryAndParseRevisions(id: string): AsyncGenerator<ItemState, void, void> {
     for await (let queryResult of executeApiQueries(id)) {
         for (let itemState of parseApiResponse(queryResult)) {
             yield itemState;
         }
     }
+}
+
+async function getEntityRevisionCount(id: string): Promise<number> {
+    let url = `https://www.wikidata.org/w/rest.php/v1/page/${id}/history/counts/edits`;
+    let response = await fetch(url);
+    if (response.status !== 200) {
+        return response.text()
+            .then(errText => {
+                console.error('Failed executing API request', response, errText);
+                throw new Error(errText);
+            });
+    }
+    const pageHistoryCount = <MWAPIPageHistoryCountResponse>(await response.json());
+    return pageHistoryCount.count;
 }
 
 async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<BlameData> {
@@ -231,6 +289,7 @@ async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<B
         }
 
         currentState = revision;
+        setProgress(revisionCount, dataEntityRevisionCount, revision.metadata.timestamp);
     }
 
     if (currentState !== undefined) {
@@ -248,7 +307,7 @@ async function processRevisions(revisions: AsyncGenerator<ItemState>): Promise<B
 async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultRevision[], void, void> {
     let continueToken: string | null = null;
     while (true) {
-        const response = await executeSingleApiCall(qid, BATCH_SIZE, continueToken);
+        const response = await executeSingleRevisionFetchCall(qid, BATCH_SIZE, continueToken);
 
         if (!response?.query?.pages || response.query.pages.length != 1) {
             reportError('Error fetching revisions');
@@ -265,7 +324,7 @@ async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultR
 
         const revisions = pageData.revisions;
         yield revisions;
-        if (response.batchcomplete) {
+        if (response.batchcomplete || stopRequested) {
             break;
         }
 
@@ -273,22 +332,22 @@ async function* executeApiQueries(qid: string): AsyncGenerator<MWAPIQueryResultR
     }
 }
 
-async function executeSingleApiCall(qid: string, revlimit: number | 'max', continueToken: string | null): Promise<MWAPIQueryResponse> {
+async function executeMWApiCall(url: string): Promise<MWAPIQueryResponse> {
+    const response = await fetch(url);
+    if (response.status !== 200) {
+        const errText = await response.text();
+        console.error('Failed executing API request', response, errText);
+        throw new Error(errText);
+    }
+    return <MWAPIQueryResponse>(await response.json());
+}
+
+function executeSingleRevisionFetchCall(qid: string, revlimit: number | 'max', continueToken: string | null): Promise<MWAPIQueryResponse> {
     let url = `https://www.wikidata.org/w/api.php?action=query&format=json&origin=*&prop=revisions&formatversion=2&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent%7Ccontentmodel%7Ccomment%7Cparsedcomment%7Cflags&rvslots=main&rvlimit=${revlimit}&titles=${qid}`;
     if (continueToken) {
         url += '&rvcontinue=' + continueToken;
     }
-    return fetch(url)
-        .then(response => {
-            if (response.status !== 200) {
-                return response.text()
-                    .then(errText => {
-                        console.error('Failed executing API request', response, errText);
-                        throw new Error(errText);
-                    });
-            }
-            return <Promise<MWAPIQueryResponse>>response.json();
-        })
+    return executeMWApiCall(url);
 }
 
 function* parseApiResponse(revisions: MWAPIQueryResultRevision[]): Iterable<ItemState> {
