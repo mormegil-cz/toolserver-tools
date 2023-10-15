@@ -290,7 +290,7 @@ function buildFullLabel(qid: string) {
             first = false;
             const superdata = classData[superclass];
             if (!superdata) {
-                console.warn('No superclass', superclass, 'of', qid);
+                if (qid !== ROOT_CLASS) console.warn('No superclass', superclass, 'of', qid);
                 continue;
             }
             labelParts.push(superdata.l);
