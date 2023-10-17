@@ -228,6 +228,16 @@ function init() {
             $spinner.style.display = 'none';
         });
 
+    const $btnAbout = $('btnAbout') as HTMLButtonElement;
+    const $dlgAbout = $('dlgAbout') as HTMLDialogElement;
+    $dlgAbout.addEventListener('close', () => {
+        saveToStorage('hideAbout', 'y');
+        console.debug('closed!');
+    });
+    $btnAbout.addEventListener('click', $dlgAbout.showModal.bind($dlgAbout));
+    if (!loadFromStorage('hideAbout', 'y')) {
+        $dlgAbout.showModal();
+    }
 }
 
 function addGuess(item: WDClassAutocomplete) {
@@ -504,6 +514,23 @@ function sortCycleMembers(xs: string[]): string[] {
     }
     if (minIdx === 0) return xs;
     return xs.slice(minIdx).concat(xs.slice(0, minIdx));
+}
+
+function loadFromStorage(name: string, errorValue: string): string {
+    try {
+        return localStorage.getItem(name);
+    } catch (e) {
+        console.debug(e);
+        return errorValue;
+    }
+}
+
+function saveToStorage(name: string, value: string) {
+    try {
+        localStorage.setItem(name, value);
+    } catch (e) {
+        console.debug(e);
+    }
 }
 
 window.onload = init;

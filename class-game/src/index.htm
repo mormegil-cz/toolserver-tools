@@ -18,14 +18,81 @@
             <div id="baseToolbox">
                 <h3>Wikidata Class Game</h3>
 
+                <button id="btnAbout" title="Information about this game">About</button>
                 <button id="btnNewGame" title="Start a new game">New game</button>
                 <button id="btnAddHint" title="Get a hint">Hint</button>
                 <input id="editGuess" size="60" />
-                <label for="cbFull" title="Search everywhere?"><input id="cbFull" type="checkbox" /> *ab*</label>
+                <label for="cbFull" title="Search the substring everywhere (or just at the beginning)?"><input id="cbFull" type="checkbox" /> *ab*</label>
             </div>
         </div>
         <div id="display"></div>
     </div>
+    <dialog id="dlgAbout">
+        <h2>About Wikidata Class Game</h2>
+        <p>
+            This is a simple abstract game for people interested in (and well-versed in) <a href="https://www.wikidata.org">Wikidata</a> class hierarchy.
+        </p>
+
+        <h3>How to play</h3>
+        <p>
+            Your goal is to figure which <i>class</i> (existing as a Wikidata item) was chosen by random at the beginning of a game, in as few guesses as possible.
+            On the screen, the mysterious class is displayed as a red oval with “?” and an arrow to a blue oval with “entity” which represents
+            <a href="https://www.wikidata.org/wiki/Q35120">the root of Wikidata class tree</a>. The arrow shows that the mysterious class is a (transitive) subclass
+            of the root entity (as are all entities in the tree).
+        </p>
+        <p>
+            You play by adding guesses: by writing into the edit field at the top, you are offered corresponding classes existing on Wikidata (in parentheses,
+            all direct superclasses of each class are shown, which should help to disambiguate possibly multiple classes with the same label). By clicking on an offered
+            class (or by selecting using arrows and pressing <kbd>ENTER</kbd>), the class is added into the graph to its proper place, together with a class which shows
+            where the selected class diverges from the mysterious class in its path to the root class. Again, all arrows show the transitive subclass hierarchy.
+            So, all guesses should help you narrow down the seeked class.
+        </p>
+        <p>
+            When your guess happens to be the mysterious class, you win the game. Note there is no competition nor scoreboard. You are playing against yourself, to understand
+            the Wikidata class hierarchy better, and maybe to find (and possibly improve!) its darker corners.
+        </p>
+
+        <h3>Other controls</h3>
+        <p>
+            In addition to the main text input box, there are some other, less important, controls:
+        </p>
+        <ul>
+            <li><i>About</i> – shows this dialog</li>
+            <li><i>New game</i> – starts a new game (if a game is in progress, it will tell you the mysterious class you failed to find)</li>
+            <li><i>Hint</i> – adds a class to the graph which might help you</li>
+            <li><i>*ab*</i> – if you check this box, the text input box will search in the whole class names (and the list of their superclasses), not only from the beginning</li>
+        </ul>
+        <p>
+            Also, by clicking on a class in the graph (except the mysterious class, obviously), its Wikidata entity page will open. You can rearrange the classes in the graph a bit
+            by dragging them. Using the mouse wheel, you can zoom in or out.
+        </p>
+
+        <h3>Data</h3>
+        <p>
+            The data come (obviously) from Wikidata (and are <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0-licensed</a>). Specifically,
+            5000&nbsp;most often linked Wikidata items were taken and filtered on those items which are classes. This means some <em>important</em> but not very much
+            <em>linked</em> classes are missing (e.g. <a href="https://www.wikidata.org/wiki/Q11344">chemical element</a> is definitely an important class,
+            but as there are only about a hundred elements, this class did not make it into the selection), while other not that important classes may be present if they
+            are used a lot (e.g. <a href="https://www.wikidata.org/wiki/Q26267864">Wikimedia KML file</a> or
+            <a href="https://www.wikidata.org/wiki/Q22979588">source known to be unreliable</a>).
+        </p>
+
+        <h3>Inspiration</h3>
+        <p>
+            The game was inspired by <a href="https://metazooa.com/">Metazooa</a> which works with the same basic principle but is focused on animal taxonomy.
+        </p>
+
+        <h3>Bug reports, source code</h3>
+        <p>
+            If you want to see the source, report an error, offer an improvement, etc., see <a href="https://github.com/mormegil-cz/toolserver-tools/tree/master/class-game">GitHub</a>.
+        </p>
+
+        <div>
+            <form method="dialog">
+                <button id="btnCloseAbout">OK</button>
+            </form>
+        </div>
+    </dialog>
     <div id="spinner"></div>
     <script src="lib/vis-network.min.js"></script>
     <script src="bundle.js" async defer></script>

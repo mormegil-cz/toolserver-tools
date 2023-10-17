@@ -39,6 +39,14 @@ body {
     z-index: 100;
 }
 
+dialog {
+    max-width: 80vw;
+}
+
+dialog::backdrop {
+    background-color: #333e;
+}
+
 textarea {
     font-family: monospace;
 }
