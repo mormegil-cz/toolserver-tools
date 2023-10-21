@@ -18,6 +18,7 @@ let classNameTrieFull: TrieSearch<WDClassAutocomplete> = undefined;
 let seekedQid: string | undefined = undefined;
 let gameFinished: boolean = undefined;
 let moveCounter: number = undefined;
+let hintCounter: number = undefined;
 let useFullSearch: boolean = false;
 
 const visibleClasses = new Set<string>();
@@ -245,7 +246,7 @@ function addGuess(item: WDClassAutocomplete) {
     if (chosenQid === seekedQid) {
         // done!
         gameFinished = true;
-        toastInfo('Great! You have won in ' + moveCounter + ' move' + (moveCounter === 1 ? '' : 's'));
+        toastInfo(`Great! You have won in ${moveCounter} move${moveCounter === 1 ? '' : 's'} ${hintCounter ? ` (including ${hintCounter} hint${hintCounter === 1 ? '' : 's'})` : ''}`);
         updateGraph();
         seekedQid = undefined;
         return;
@@ -326,7 +327,8 @@ function startNewGame() {
     seekedQid = classIndex[idx];
     gameFinished = false;
     moveCounter = 0;
-    console.debug("Starting new game; seeking", seekedQid, classData[seekedQid].l);
+    hintCounter = 0;
+    // console.debug("Starting new game; seeking", seekedQid, classData[seekedQid].l);
 
     visibleClasses.clear();
     parentsOfVisible.clear();
@@ -416,6 +418,7 @@ function addHint() {
         const chosenQid = sortedParents[sortedParents.length - 1];
         addAttemptedClass(chosenQid);
         toastInfo('See ' + classData[chosenQid].l);
+        ++hintCounter;
         return;
     }
 
