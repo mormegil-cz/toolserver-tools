@@ -68,7 +68,7 @@ function execute($catname, $project, $subcats)
 	{
 		$query .= 'where lt0.lt_namespace=14 and lt0';
 	}
-	$query .= ".lt_title='" . mysqli_real_escape_string($db, $catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to like 'http://toolserver.org/~geohack/%') limit 1000";
+	$query .= ".lt_title='" . mysqli_real_escape_string($db, $catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to_domain_index='https://org.toolforge.geohack.') limit 1000";
 
     $queryresult = mysqli_query($db, $query);
     if (!$queryresult)
