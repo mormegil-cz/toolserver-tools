@@ -69,7 +69,7 @@ function process_years_quick($basetitle)
   $pattern = str_replace(' ', '_', $basetitle);
   $pattern = str_replace('_', '\\_', $pattern);
   $pattern = str_replace('[yr]', '____', $pattern);
-  $queryresult = mysqli_query($db, 'SELECT cl_to, COUNT(*) FROM categorylinks WHERE cl_to LIKE \'' . mysqli_real_escape_string($db, $pattern) . '\' GROUP BY cl_to');
+  $queryresult = mysqli_query($db, 'SELECT lt_title, COUNT(*) FROM categorylinks INNER JOIN linktarget ON cl_target_id = lt_id WHERE lt_namespace=14 AND lt_title LIKE \'' . mysqli_real_escape_string($db, $pattern) . '\' GROUP BY lt_title');
   if (!$queryresult)
   {
   	header('Status: 500');
@@ -104,7 +104,7 @@ function process_years_slow($basetitle)
   {
       $catname = str_replace(' ', '_', $basetitle);
       $catname = str_replace('[yr]', $year, $catname);
-      $queryresult = mysqli_query($db, 'SELECT COUNT(*) FROM categorylinks WHERE cl_to=\'' . mysqli_real_escape_string($db, $catname) . '\'');
+      $queryresult = mysqli_query($db, 'SELECT COUNT(*) FROM categorylinks INNER JOIN linktarget ON cl_target_id = lt_id WHERE lt_namespace=14 AND lt_title=\'' . mysqli_real_escape_string($db, $catname) . '\'');
       if (!$queryresult)
       {
         header('Status: 500');

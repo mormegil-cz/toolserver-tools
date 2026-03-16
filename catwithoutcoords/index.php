@@ -58,17 +58,17 @@ function execute($catname, $project, $subcats)
 
 	$catname = title_to_db($catname);
 
-	$query = 'select p.page_title from page p inner join categorylinks cl0 on cl0.cl_from=p.page_id ';
+	$query = 'select p.page_title from page p inner join categorylinks cl0 on cl0.cl_from=p.page_id INNER JOIN linktarget lt0 ON cl0.cl_target_id = lt0.lt_id  ';
 
 	if ($subcats)
 	{
-		$query .= "inner join page pc0 on pc0.page_namespace=14 and pc0.page_title=cl0.cl_to inner join categorylinks cl1 on cl1.cl_from=pc0.page_id where cl1";
+		$query .= "inner join page pc0 on pc0.page_namespace=14 and pc0.page_title=lt0.lt_title inner join categorylinks cl1 on cl1.cl_from=pc0.page_id inner join linktarget lt1 ON cl1.cl_target_id=lt1.lt_id where lt1.lt_namespace=14 and lt1";
 	}
 	else
 	{
-		$query .= 'where cl0';
+		$query .= 'where lt0.lt_namespace=14 and lt0';
 	}
-	$query .= ".cl_to='" . mysqli_real_escape_string($db, $catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to like 'http://toolserver.org/~geohack/%') limit 1000";
+	$query .= ".lt_title='" . mysqli_real_escape_string($db, $catname) . "' and p.page_namespace=0 and not exists (select el_from from externallinks where el_from=p.page_id and el_to like 'http://toolserver.org/~geohack/%') limit 1000";
 
     $queryresult = mysqli_query($db, $query);
     if (!$queryresult)

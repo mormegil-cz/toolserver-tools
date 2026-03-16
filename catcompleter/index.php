@@ -97,7 +97,7 @@ function execute($catname, $homelang, $sourcewiki)
 	
 	echo "<!-- Loading category -->\n";
 	flush();
-	$queryresult = mysqli_query($db, "SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE cl_to = '" . mysqli_real_escape_string($db, title_to_db($catname)) . "' AND page_namespace = 0 LIMIT 500");
+	$queryresult = mysqli_query($db, "SELECT page_title FROM page INNER JOIN categorylinks ON cl_from = page_id INNER JOIN linktarget ON lt_id = cl_target_id WHERE lt_namespace = 14 AND lt_title = '" . mysqli_real_escape_string($db, title_to_db($catname)) . "' AND page_namespace = 0 LIMIT 500");
 	if (!$queryresult)
 	{
 		echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
@@ -119,7 +119,7 @@ function execute($catname, $homelang, $sourcewiki)
 	$remotewiki = 'http://' . htmlspecialchars($sourcewiki, ENT_QUOTES) . '.wikipedia.org/wiki/';
 	$remotecaturl = $remotewiki . "Category:" . htmlspecialchars(str_replace('?', '%3F', title_to_db($remotecatname)), ENT_QUOTES);
 
-	$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysqli_real_escape_string($remotedb, $homelang) .  "' INNER JOIN page ON page_id = ll_from WHERE cl_to = '" .  mysqli_real_escape_string($remotedb, title_to_db($remotecatname)) . "' AND page_namespace=0 LIMIT 500";
+	$query = "SELECT ll_title, page_title FROM categorylinks INNER JOIN linktarget ON lt_id = cl_target_id INNER JOIN langlinks ON cl_from = ll_from AND ll_lang = '" .  mysqli_real_escape_string($remotedb, $homelang) .  "' INNER JOIN page ON page_id = ll_from WHERE lt_namespace = 14 AND lt_title = '" .  mysqli_real_escape_string($remotedb, title_to_db($remotecatname)) . "' AND page_namespace=0 LIMIT 500";
 	$result = mysqli_query($remotedb, $query);
 	if (!$result)
 	{

@@ -97,7 +97,7 @@ function execute($articlename, $homelang)
 
     echo "<!-- Loading local categories -->\n";
     flush();
-    $queryresult = mysqli_query($db, "SELECT cl_to FROM page INNER JOIN categorylinks ON cl_from = page_id WHERE page_title = '" . mysqli_real_escape_string($db, title_to_db($articlename)) . "' AND page_namespace = 0 LIMIT 500");
+    $queryresult = mysqli_query($db, "SELECT lt_title FROM page INNER JOIN categorylinks ON cl_from = page_id INNER JOIN linktarget ON lt_id=cl_target_id WHERE page_title = '" . mysqli_real_escape_string($db, title_to_db($articlename)) . "' AND page_namespace = 0 LIMIT 500");
     if (!$queryresult)
     {
         echo "<p class='error'>" . wfMsg('error-catquery') . "</p>";
@@ -130,12 +130,13 @@ function execute($articlename, $homelang)
 
         /*
         article.page_title => article.page_id
-        article.page_id == cl_from => cl_to
-        cl_to == category.page_title => category.page_id
+        article.page_id == cl_from => cl_target_id
+        cl_target_id == lt_id => lt_title
+        lt_title == category.page_title => category.page_id
         category.page_id == ll_from
         + pp_propname=='hiddencat' AND category.page_id=pp_page
         */
-        $query = "SELECT ll_title, cl_to, pp_page FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN page AS catpage ON catpage.page_title = cl_to AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysqli_real_escape_string($remotedb, $homelang) . "' LEFT JOIN page_props ON catpage.page_id=pp_page AND pp_propname='hiddencat' WHERE artpage.page_title = '" . mysqli_real_escape_string($remotedb, title_to_db($remotearticlename)) . "' AND artpage.page_namespace = 0 LIMIT 500";
+        $query = "SELECT ll_title, lt_title, pp_page FROM page AS artpage INNER JOIN categorylinks ON artpage.page_id = cl_from INNER JOIN linktarget ON cl_target_id=lt_id INNER JOIN page AS catpage ON catpage.page_title = lt_title AND catpage.page_namespace = 14 INNER JOIN langlinks ON catpage.page_id = ll_from AND ll_lang='" . mysqli_real_escape_string($remotedb, $homelang) . "' LEFT JOIN page_props ON catpage.page_id=pp_page AND pp_propname='hiddencat' WHERE artpage.page_title = '" . mysqli_real_escape_string($remotedb, title_to_db($remotearticlename)) . "' AND artpage.page_namespace = 0 LIMIT 500";
         $result = mysqli_query($remotedb, $query);
         if (!$result)
         {
