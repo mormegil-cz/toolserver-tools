@@ -19,13 +19,13 @@
     "typescript": "^4.9.5",
     "webpack": "^5.105.0",
     "webpack-cli": "^5.0.1",
-    "webpack-dev-server": "^5.2.5"
+    "webpack-dev-server": "^6.0.0"
   },
   "dependencies": {
     "autocompleter": "^9.1.0",
     "toastify-js": "^1.12.0",
     "trie-search": "^1.4.2",
-    "vis-data": "^7.1.4",
-    "vis-network": "^9.1.4"
+    "vis-data": "^8.0.4",
+    "vis-network": "^10.1.0"
   }
 }
