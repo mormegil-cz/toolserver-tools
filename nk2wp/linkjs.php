@@ -44,7 +44,7 @@ WHERE
 	}
 
 	SERVICE wikibase:label {
-		bd:serviceParam wikibase:language "cs,en,sk,de,fr,pl,ru,it,es,pt" .
+		bd:serviceParam wikibase:language "cs,en,sk,de,fr,pl,ru,it,es,pt,mul" .
 	}
 }
 SPARQL

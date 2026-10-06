@@ -4,7 +4,7 @@ import * as vis from 'vis-network/standalone';
 const $: (elementId: string) => HTMLElement | null = document.getElementById.bind(document);
 
 // TODO: configurable language
-const LANGUAGES = ['en', 'cs'];
+const LANGUAGES = ['en', 'cs', 'mul'];
 
 const MAX_DRILL_VALUES = 10;
 const WBGETENTITIES_BATCH_SIZE = 50;
