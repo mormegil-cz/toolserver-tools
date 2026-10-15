@@ -70,7 +70,7 @@ if (!$rfcfrontpageid)
 	return;
 }
 
-$queryresult = mysqli_query($db, "SELECT page_title, page_id FROM page LEFT JOIN pagelinks ON pl_from=$rfcfrontpageid AND pl_namespace=4 AND pl_title=page_title WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND pl_from IS NULL");
+$queryresult = mysqli_query($db, "SELECT page_title, page_id FROM page WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND NOT EXISTS(SELECT lt_id FROM pagelinks INNER JOIN linktarget ON pl_target_id=lt_id WHERE pl_from=$rfcfrontpageid AND lt_namespace=4 AND lt_title=page_title)");
 if (!$queryresult)
 {
 	header('Status: 500');
