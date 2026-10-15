@@ -70,7 +70,28 @@ if (!$rfcfrontpageid)
 	return;
 }
 
-$queryresult = mysqli_query($db, "SELECT page_title, page_id FROM page WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND NOT EXISTS(SELECT lt_id FROM pagelinks INNER JOIN linktarget ON pl_target_id=lt_id WHERE pl_from=$rfcfrontpageid AND lt_namespace=4 AND lt_title=page_title)");
+$queryresult = mysqli_query($db, "
+SELECT page_title, page_id,
+oldestactor.actor_name oldest_actor, oldestrev.rev_timestamp oldest_timestamp, oldestrev.rev_id oldest_id,
+newestactor.actor_name newest_actor, newestrev.rev_timestamp newest_timestamp, newestrev.rev_id newest_id
+
+FROM page
+
+INNER JOIN (
+    SELECT rev_page limit_page,
+           MIN(rev_id) AS min_rev,
+           MAX(rev_id) AS max_rev
+    FROM revision
+    GROUP BY rev_page
+) AS limits ON limit_page = page_id
+INNER JOIN revision oldestrev ON oldestrev.rev_id = min_rev
+    INNER JOIN actor_revision oldestactor ON oldestactor.actor_id = oldestrev.rev_actor
+INNER JOIN revision newestrev ON newestrev.rev_id = max_rev
+    INNER JOIN actor_revision newestactor ON newestactor.actor_id = newestrev.rev_actor
+
+WHERE page_namespace=4 AND page_title LIKE '$PAGE_PREFIX%' AND page_is_redirect=0 AND NOT EXISTS(SELECT lt_id FROM pagelinks INNER JOIN linktarget ON pl_target_id=lt_id WHERE pl_from=$rfcfrontpageid AND lt_namespace=4 AND lt_title=page_title)
+ORDER BY newest_timestamp DESC
+");
 if (!$queryresult)
 {
 	header('Status: 500');
@@ -109,27 +130,12 @@ while ($row = mysqli_fetch_row($queryresult))
 {
     $pagetitle = $row[0];
     $pageid = $row[1];
-
-    $oldestres = mysqli_query($db, "SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id WHERE rev_page=$pageid ORDER BY rev_id ASC LIMIT 1");
-    if (!$oldestres) {
-        die(mysqli_error($db));
-    }
-    $oldestrev = mysqli_fetch_row($oldestres);
-    mysqli_free_result($oldestres);
-
-    $newestres = mysqli_query($db, "SELECT actor_name, rev_timestamp, rev_id FROM revision INNER JOIN actor_revision ON rev_actor=actor_id LEFT JOIN user_groups ON ug_user=actor_user AND ug_group='bot' WHERE rev_page=$pageid AND ug_user IS NULL ORDER BY rev_id DESC LIMIT 1");
-    if (!$newestres) {
-        die(mysqli_error($db));
-    }
-    $newestrev = mysqli_fetch_row($newestres);
-    mysqli_free_result($newestres);
-
-    $oldestauthor = $oldestrev[0];
-    $oldesttimestamp = $oldestrev[1];
-    $oldestrevid = $oldestrev[2];
-    $newestauthor = $newestrev[0];
-    $newesttimestamp = $newestrev[1];
-    $newestrevid = $newestrev[2];
+    $oldestauthor = $row[2];
+    $oldesttimestamp = $row[3];
+    $oldestrevid = $row[4];
+    $newestauthor = $row[5];
+    $newesttimestamp = $row[6];
+    $newestrevid = $row[7];
 
 	echo "\t<tr>";
     echo "\t\t<td>" . wikilink(substr($pagetitle, $PAGE_PREFIX_LEN), 'Wikipedie:' . $pagetitle) . "</td>\n\t\t<td>" . oldrevlink(format_timestamp($oldesttimestamp), $oldestrevid) . "</td>\n\t\t<td>" . wikilink($oldestauthor, 'Wikipedista:' . $oldestauthor) . "</td>\n\t\t<td>" . difflink(format_timestamp($newesttimestamp), $newestrevid) . "</td>\n\t\t<td>" . wikilink($newestauthor, 'Wikipedista:' . $newestauthor) . "</td>\n\t</tr>\n";
@@ -139,7 +145,6 @@ while ($row = mysqli_fetch_row($queryresult))
     echo "\t</table>\n";
 
     echo '<p>Informace aktuální k ' . format_timestamp(get_last_edit_timestamp($db), false, true) . ' (UTC).</p>';
-
 ?>
 </body>
 </html>
